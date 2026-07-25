@@ -1,0 +1,1275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Waypoint — Career Roadmap Builder</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#1c2b1e;
+    --paper:#ece4d0;
+    --paper-2:#e2d8bd;
+    --forest:#2f5d3a;
+    --forest-dark:#234529;
+    --brass:#b8862e;
+    --clay:#a8542e;
+    --line: rgba(28,43,30,0.18);
+    --line-strong: rgba(28,43,30,0.35);
+    --card-bg: #f4efe1;
+    --radius: 14px;
+  }
+
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+
+  body{
+    background:
+      radial-gradient(circle at 1px 1px, rgba(28,43,30,0.06) 1px, transparent 0) 0 0/22px 22px,
+      var(--paper);
+    color:var(--ink);
+    font-family:'Inter', sans-serif;
+    line-height:1.5;
+    min-height:100vh;
+    padding-bottom:80px;
+  }
+
+  h1,h2,h3,.display{
+    font-family:'Fraunces', serif;
+    color:var(--ink);
+    margin:0;
+  }
+
+  .mono{ font-family:'IBM Plex Mono', monospace; }
+
+  a{ color:var(--forest-dark); }
+
+  ::selection{ background:var(--brass); color:var(--paper); }
+
+  /* ---------- Layout shell ---------- */
+  .shell{
+    max-width:920px;
+    margin:0 auto;
+    padding:32px 24px 0;
+  }
+
+  header.top{
+    text-align:center;
+    margin-bottom:8px;
+  }
+
+  header.top .kicker{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px;
+    letter-spacing:0.16em;
+    text-transform:uppercase;
+    color:var(--clay);
+    margin-bottom:6px;
+  }
+
+  header.top h1{
+    font-size:clamp(32px, 5vw, 46px);
+    font-weight:600;
+    letter-spacing:-0.01em;
+  }
+
+  header.top p.sub{
+    margin-top:8px;
+    color:rgba(28,43,30,0.7);
+    font-size:15px;
+  }
+
+  /* ---------- Trail SVG ---------- */
+  .trail-wrap{
+    margin:28px 0 20px;
+  }
+  .trail-wrap svg{ width:100%; height:auto; display:block; }
+  .trail-path{
+    fill:none;
+    stroke: var(--line-strong);
+    stroke-width:2.5;
+    stroke-dasharray: 2 10;
+    stroke-linecap:round;
+  }
+  .trail-path-fill{
+    fill:none;
+    stroke: var(--forest);
+    stroke-width:2.5;
+    stroke-linecap:round;
+    transition: stroke-dashoffset 0.6s ease;
+  }
+  .wp-marker circle.ring{
+    fill: var(--paper);
+    stroke: var(--line-strong);
+    stroke-width:2;
+    transition: stroke 0.4s ease, fill 0.4s ease;
+  }
+  .wp-marker.active circle.ring{
+    stroke: var(--forest);
+    fill: var(--forest);
+  }
+  .wp-marker.done circle.ring{
+    stroke: var(--brass);
+    fill: var(--brass);
+  }
+  .wp-marker text.num{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px;
+    fill: var(--ink);
+    text-anchor:middle;
+    dominant-baseline:middle;
+    transition: fill 0.4s ease;
+  }
+  .wp-marker.active text.num, .wp-marker.done text.num{ fill: var(--paper); }
+  .wp-marker text.label{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px;
+    letter-spacing:0.05em;
+    text-transform:uppercase;
+    fill: rgba(28,43,30,0.65);
+    text-anchor:middle;
+  }
+  .wp-marker.active text.label{ fill: var(--forest); font-weight:600; }
+
+  /* ---------- Panels / cards ---------- */
+  .panel{
+    background: var(--card-bg);
+    border:1.5px solid var(--line);
+    border-radius: var(--radius);
+    padding:22px;
+    margin-bottom:20px;
+  }
+
+  .panel h2{
+    font-size:20px;
+    font-weight:600;
+    margin-bottom:4px;
+  }
+  .panel .panel-note{
+    font-size:13px;
+    color:rgba(28,43,30,0.6);
+    margin-bottom:16px;
+  }
+
+  .field-row{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:16px;
+    margin-bottom:16px;
+  }
+  .field{
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+  }
+  .field label{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px;
+    letter-spacing:0.06em;
+    text-transform:uppercase;
+    color:rgba(28,43,30,0.65);
+  }
+  input[type=text], input[type=password], select, input[type=number]{
+    font-family:'Inter', sans-serif;
+    font-size:14px;
+    padding:10px 12px;
+    border:1.5px solid var(--line-strong);
+    border-radius:8px;
+    background:var(--paper);
+    color:var(--ink);
+    outline:none;
+    transition: border-color 0.2s;
+  }
+  input[type=text]:focus, input[type=password]:focus, select:focus, input[type=number]:focus{
+    border-color: var(--forest);
+  }
+  input[type=range]{
+    width:100%;
+    accent-color: var(--forest);
+  }
+
+  .slider-value{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:13px;
+    color:var(--forest-dark);
+    font-weight:600;
+  }
+
+  .toggle-group{
+    display:inline-flex;
+    border:1.5px solid var(--line-strong);
+    border-radius:8px;
+    overflow:hidden;
+    width:fit-content;
+  }
+  .toggle-group button{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px;
+    padding:7px 14px;
+    border:none;
+    background:var(--paper);
+    color:var(--ink);
+    cursor:pointer;
+  }
+  .toggle-group button.active{
+    background:var(--forest);
+    color:var(--paper);
+  }
+
+  .chip-group{
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+  }
+  .chip{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12.5px;
+    padding:8px 14px;
+    border:1.5px solid var(--line-strong);
+    border-radius:999px;
+    background:var(--paper);
+    cursor:pointer;
+    user-select:none;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+  }
+  .chip:hover{ border-color: var(--forest); }
+  .chip.selected{
+    background:var(--forest);
+    border-color:var(--forest);
+    color:var(--paper);
+  }
+
+  /* ---------- Buttons ---------- */
+  .btn{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:13px;
+    letter-spacing:0.03em;
+    padding:12px 20px;
+    border-radius:8px;
+    border:1.5px solid var(--forest);
+    background:var(--forest);
+    color:var(--paper);
+    cursor:pointer;
+    transition: transform 0.1s, background 0.15s, opacity 0.15s;
+  }
+  .btn:hover{ background:var(--forest-dark); }
+  .btn:active{ transform: translateY(1px); }
+  .btn:disabled{ opacity:0.45; cursor:not-allowed; }
+  .btn.secondary{
+    background:transparent;
+    color:var(--forest-dark);
+  }
+  .btn.secondary:hover{ background: rgba(47,93,58,0.08); }
+  .btn.brass{
+    background:var(--brass);
+    border-color:var(--brass);
+    color:var(--ink);
+  }
+  .btn.brass:hover{ background:#a1752a; }
+
+  .btn-row{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-top:6px;
+    gap:12px;
+    flex-wrap:wrap;
+  }
+
+  /* ---------- Setup panel ---------- */
+  .setup-grid{
+    display:grid;
+    grid-template-columns: 1.4fr 1fr auto;
+    gap:14px;
+    align-items:end;
+  }
+  .setup-note{
+    font-size:12px;
+    color:rgba(28,43,30,0.6);
+    margin-top:8px;
+    line-height:1.5;
+  }
+  .setup-note .badge{
+    display:inline-block;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:10.5px;
+    padding:2px 7px;
+    border-radius:5px;
+    background:var(--forest);
+    color:var(--paper);
+    margin-right:6px;
+  }
+
+  /* ---------- Banner ---------- */
+  .banner{
+    display:none;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:12px;
+    padding:14px 16px;
+    border-radius:10px;
+    border:1.5px solid var(--clay);
+    background: rgba(168,84,46,0.1);
+    color: var(--clay);
+    font-size:13.5px;
+    margin-bottom:18px;
+  }
+  .banner.show{ display:flex; }
+  .banner button{
+    background:none;
+    border:none;
+    color:var(--clay);
+    font-size:16px;
+    cursor:pointer;
+    line-height:1;
+  }
+
+  /* ---------- Career cards ---------- */
+  .career-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:14px;
+    margin-bottom:16px;
+  }
+  .career-card{
+    border:1.5px solid var(--line-strong);
+    border-radius:12px;
+    padding:16px;
+    background:var(--paper);
+    cursor:pointer;
+    transition: border-color 0.15s, background 0.15s;
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+  }
+  .career-card:hover{ border-color:var(--forest); }
+  .career-card.selected{
+    border-color:var(--forest);
+    background: #e3ead9;
+    box-shadow: inset 0 0 0 1.5px var(--forest);
+  }
+  .career-card h3{
+    font-size:16.5px;
+    font-weight:600;
+  }
+  .career-card p{
+    font-size:13px;
+    color:rgba(28,43,30,0.75);
+    margin:0;
+  }
+  .badge-row{
+    display:flex;
+    gap:8px;
+    flex-wrap:wrap;
+  }
+  .badge{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px;
+    padding:3px 9px;
+    border-radius:6px;
+    border:1px solid var(--line-strong);
+  }
+  .badge.salary{ color:var(--forest-dark); border-color:var(--forest); }
+  .badge.growth{ color:var(--brass); border-color:var(--brass); }
+  .badge.match{ color:var(--clay); border-color:var(--clay); }
+
+  /* ---------- Loading ---------- */
+  .loading-row{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:13px;
+    color:rgba(28,43,30,0.7);
+    padding:10px 0;
+  }
+  .spinner{
+    width:16px; height:16px;
+    border-radius:50%;
+    border:2px solid var(--line-strong);
+    border-top-color: var(--forest);
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin{ to{ transform: rotate(360deg); } }
+
+  /* ---------- Roadmap ---------- */
+  .phase{
+    position:relative;
+    padding-left:22px;
+    border-left:3px solid var(--forest);
+    margin-bottom:26px;
+  }
+  .phase:nth-child(2n){ border-left-color: var(--brass); }
+  .phase:nth-child(3n){ border-left-color: var(--clay); }
+  .phase-dot{
+    position:absolute;
+    left:-9px; top:2px;
+    width:15px; height:15px;
+    border-radius:50%;
+    background:var(--forest);
+    border:2px solid var(--paper);
+  }
+  .phase:nth-child(2n) .phase-dot{ background:var(--brass); }
+  .phase:nth-child(3n) .phase-dot{ background:var(--clay); }
+  .phase h3{
+    font-size:18px;
+    margin-bottom:2px;
+  }
+  .phase .phase-duration{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11.5px;
+    color:rgba(28,43,30,0.6);
+    margin-bottom:12px;
+    display:block;
+  }
+  .topic-card{
+    background:var(--paper);
+    border:1.5px solid var(--line);
+    border-radius:10px;
+    padding:12px 14px;
+    margin-bottom:10px;
+  }
+  .topic-top{
+    display:flex;
+    align-items:flex-start;
+    gap:10px;
+  }
+  .topic-top input[type=checkbox]{
+    margin-top:3px;
+    width:16px; height:16px;
+    accent-color:var(--forest);
+    cursor:pointer;
+    flex-shrink:0;
+  }
+  .topic-title{
+    font-weight:600;
+    font-size:14.5px;
+    flex:1;
+  }
+  .topic-title.done{
+    text-decoration: line-through;
+    color: rgba(28,43,30,0.45);
+  }
+  .topic-time{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px;
+    color:var(--clay);
+    white-space:nowrap;
+  }
+  .topic-milestone{
+    font-size:12.5px;
+    color:rgba(28,43,30,0.7);
+    margin:6px 0 10px 26px;
+  }
+  .topic-links{
+    display:flex;
+    gap:8px;
+    margin-left:26px;
+    flex-wrap:wrap;
+  }
+  .topic-links a{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px;
+    text-decoration:none;
+    padding:5px 10px;
+    border:1px solid var(--line-strong);
+    border-radius:6px;
+    color:var(--forest-dark);
+  }
+  .topic-links a:hover{ background: rgba(47,93,58,0.08); }
+
+  .cert-section{
+    margin-top:24px;
+    padding-top:18px;
+    border-top:1.5px dashed var(--line-strong);
+  }
+  .cert-list{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:10px;
+  }
+  .cert-item{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:10px 14px;
+    border:1.5px solid var(--line);
+    border-radius:8px;
+    background:var(--paper);
+    text-decoration:none;
+    color:var(--ink);
+  }
+  .cert-item:hover{ border-color:var(--brass); }
+  .cert-item .cert-name{ font-weight:600; font-size:13.5px; }
+  .cert-item .cert-provider{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px;
+    color:rgba(28,43,30,0.6);
+  }
+
+  .hidden{ display:none !important; }
+
+  footer.credit{
+    text-align:center;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px;
+    color:rgba(28,43,30,0.45);
+    margin-top:36px;
+  }
+
+  @media (max-width:640px){
+    .field-row, .career-grid, .cert-list{ grid-template-columns:1fr; }
+    .setup-grid{ grid-template-columns:1fr; }
+    .shell{ padding:20px 14px 0; }
+  }
+
+  @media print{
+    .setup, .btn-row, .trail-wrap, #step1, #step2, #step3, .banner{ display:none !important; }
+    body{ background:#fff; }
+    .panel{ border:none; padding:0; }
+  }
+</style>
+</head>
+<body>
+
+<div class="shell">
+
+  <header class="top">
+    <div class="kicker">Waypoint</div>
+    <h1>Chart your career trail</h1>
+    <p class="sub">Tell us where you're starting from — get an AI-built roadmap of skills, courses and certifications to get where you're going.</p>
+  </header>
+
+  <div class="trail-wrap">
+    <svg viewBox="0 0 800 90" preserveAspectRatio="xMidYMid meet">
+      <path class="trail-path" d="M 60 30 L 260 30 L 400 60 L 540 30 L 740 30"></path>
+      <path class="trail-path-fill" id="trailFill" d="M 60 30 L 260 30 L 400 60 L 540 30 L 740 30"
+        stroke-dasharray="900" stroke-dashoffset="900"></path>
+      <g class="wp-marker" id="wp0" transform="translate(60,30)">
+        <circle class="ring" r="13"></circle>
+        <text class="num" y="1">1</text>
+        <text class="label" y="30">Profile</text>
+      </g>
+      <g class="wp-marker" id="wp1" transform="translate(260,30)">
+        <circle class="ring" r="13"></circle>
+        <text class="num" y="1">2</text>
+        <text class="label" y="30">Career</text>
+      </g>
+      <g class="wp-marker" id="wp2" transform="translate(400,60)">
+        <circle class="ring" r="13"></circle>
+        <text class="num" y="1">3</text>
+        <text class="label" y="30">Pace</text>
+      </g>
+      <g class="wp-marker" id="wp3" transform="translate(540,30)">
+        <circle class="ring" r="13"></circle>
+        <text class="num" y="1">4</text>
+        <text class="label" y="30">Roadmap</text>
+      </g>
+    </svg>
+  </div>
+
+  <div class="banner" id="errorBanner">
+    <div id="errorBannerText"></div>
+    <button id="errorBannerClose" aria-label="Dismiss">&times;</button>
+  </div>
+
+  <!-- SETUP PANEL -->
+  <div class="panel setup">
+    <h2>Setup</h2>
+    <p class="panel-note">Bring your own OpenRouter API key. It's used only for calls to openrouter.ai from your browser this session — never stored, never sent anywhere else.</p>
+    <div class="setup-grid">
+      <div class="field">
+        <label for="apiKey">OpenRouter API key</label>
+        <input type="password" id="apiKey" placeholder="sk-or-v1-...">
+      </div>
+      <div class="field">
+        <label for="modelSelect">Model (free only)</label>
+        <select id="modelSelect"></select>
+      </div>
+      <button class="btn secondary" id="refreshModels" type="button">Refresh list</button>
+    </div>
+    <div class="setup-note"><span class="badge">Session only</span>Your key stays in memory in this tab and disappears when you close or reload the page.</div>
+  </div>
+
+  <!-- STEP 1: PROFILE -->
+  <div class="panel" id="step1">
+    <h2>1 · Your profile</h2>
+    <p class="panel-note">All fields are optional — but fill in at least one so we have something to work with.</p>
+
+    <div class="field-row">
+      <div class="field">
+        <label for="education">Education level</label>
+        <select id="education">
+          <option value="">Not specified</option>
+          <option>High school</option>
+          <option>Diploma</option>
+          <option>Undergraduate (in progress)</option>
+          <option>Bachelor's degree</option>
+          <option>Master's degree</option>
+          <option>PhD</option>
+          <option>Other</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="fieldOfStudy">Field of study / domain</label>
+        <input type="text" id="fieldOfStudy" placeholder="e.g. Computer Science">
+      </div>
+    </div>
+
+    <div class="field-row">
+      <div class="field">
+        <label for="companyStatus">Current company / status</label>
+        <input type="text" id="companyStatus" placeholder="e.g. TCS, or 'Final year student'">
+      </div>
+      <div class="field">
+        <label for="location">Location / country</label>
+        <input type="text" id="location" placeholder="e.g. India">
+      </div>
+    </div>
+
+    <div class="field-row">
+      <div class="field">
+        <label>Salary</label>
+        <div class="toggle-group" id="salaryToggle">
+          <button type="button" class="active" data-val="Current">Current</button>
+          <button type="button" data-val="Target">Target</button>
+        </div>
+      </div>
+      <div class="field">
+        <label for="salarySlider">Salary range (LPA)</label>
+        <input type="range" id="salarySlider" min="0" max="60" value="6" step="1">
+        <span class="slider-value" id="salaryValue">6 LPA</span>
+      </div>
+    </div>
+
+    <div class="field" style="margin-bottom:16px;">
+      <label>Experience level</label>
+      <div class="chip-group" id="experienceChips">
+        <div class="chip" data-val="Student">Student</div>
+        <div class="chip" data-val="Fresher">Fresher</div>
+        <div class="chip" data-val="1-3 yrs">1-3 yrs</div>
+        <div class="chip" data-val="3-5 yrs">3-5 yrs</div>
+        <div class="chip" data-val="5+ yrs">5+ yrs</div>
+      </div>
+    </div>
+
+    <div class="field" style="margin-bottom:16px;">
+      <label>Interests / skill areas</label>
+      <div class="chip-group" id="interestChips">
+        <div class="chip" data-val="AI/ML">AI/ML</div>
+        <div class="chip" data-val="Web Dev">Web Dev</div>
+        <div class="chip" data-val="Data & Analytics">Data & Analytics</div>
+        <div class="chip" data-val="Design/UX">Design/UX</div>
+        <div class="chip" data-val="Marketing">Marketing</div>
+        <div class="chip" data-val="Finance">Finance</div>
+        <div class="chip" data-val="Core Engineering">Core Engineering</div>
+        <div class="chip" data-val="Product Mgmt">Product Mgmt</div>
+        <div class="chip" data-val="Content/Media">Content/Media</div>
+        <div class="chip" data-val="Cybersecurity">Cybersecurity</div>
+        <div class="chip" data-val="Healthcare">Healthcare</div>
+        <div class="chip" data-val="Business/Ops">Business/Ops</div>
+      </div>
+    </div>
+
+    <div class="field" style="margin-bottom:8px;">
+      <label>Work style preference</label>
+      <div class="chip-group" id="workstyleChips">
+        <div class="chip" data-val="Remote">Remote</div>
+        <div class="chip" data-val="Office">Office</div>
+        <div class="chip" data-val="Freelance">Freelance</div>
+        <div class="chip" data-val="Startup">Startup</div>
+        <div class="chip" data-val="Corporate">Corporate</div>
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <span></span>
+      <button class="btn" id="findMatchesBtn" type="button">Find career matches</button>
+    </div>
+    <div class="loading-row hidden" id="loadingStep1"><div class="spinner"></div>Scouting career paths…</div>
+  </div>
+
+  <!-- STEP 2: CAREER SUGGESTIONS -->
+  <div class="panel hidden" id="step2">
+    <h2>2 · Career suggestions</h2>
+    <p class="panel-note">Pick the path that fits — you can regenerate for fresh suggestions.</p>
+    <div class="career-grid" id="careerGrid"></div>
+    <div class="loading-row hidden" id="loadingStep2"><div class="spinner"></div>Scouting career paths…</div>
+    <div class="btn-row">
+      <button class="btn secondary" id="backTo1Btn" type="button">Back</button>
+      <div style="display:flex; gap:10px;">
+        <button class="btn secondary" id="regenerateBtn" type="button">Regenerate</button>
+        <button class="btn" id="continueTo3Btn" type="button" disabled>Continue</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 3: TIMEFRAME -->
+  <div class="panel hidden" id="step3">
+    <h2>3 · Set your pace</h2>
+    <p class="panel-note">How much time do you have to invest?</p>
+    <div class="field" style="margin-bottom:18px;">
+      <label>Timeframe</label>
+      <div class="chip-group" id="timeframeChips">
+        <div class="chip" data-val="3 months">3 months</div>
+        <div class="chip" data-val="6 months">6 months</div>
+        <div class="chip" data-val="1 year">1 year</div>
+        <div class="chip" data-val="2 years">2 years</div>
+      </div>
+    </div>
+    <div class="field" style="margin-bottom:8px;">
+      <label for="hoursSlider">Hours per week</label>
+      <input type="range" id="hoursSlider" min="2" max="40" value="10" step="1">
+      <span class="slider-value" id="hoursValue">10 hrs/week</span>
+    </div>
+    <div class="btn-row">
+      <button class="btn secondary" id="backTo2Btn" type="button">Back</button>
+      <button class="btn" id="buildRoadmapBtn" type="button">Build my roadmap</button>
+    </div>
+    <div class="loading-row hidden" id="loadingStep3"><div class="spinner"></div>Laying out the trail…</div>
+  </div>
+
+  <!-- STEP 4: ROADMAP -->
+  <div class="panel hidden" id="step4">
+    <h2>4 · Your roadmap</h2>
+    <p class="panel-note" id="roadmapSubtitle"></p>
+    <div id="roadmapContent"></div>
+    <div class="btn-row">
+      <button class="btn secondary" id="startOverBtn" type="button">Start over</button>
+      <button class="btn brass" id="exportBtn" type="button">Export / Print</button>
+    </div>
+  </div>
+
+  <footer class="credit">Waypoint · built for the trail ahead</footer>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ============ STATE ============ */
+  var state = {
+    apiKey: "",
+    model: "",
+    profile: {
+      education: "", fieldOfStudy: "", companyStatus: "", location: "",
+      salaryMode: "Current", salaryLPA: 6,
+      experience: null,
+      interests: [],
+      workstyle: []
+    },
+    careers: [],
+    selectedCareerIndex: null,
+    timeframe: null,
+    hoursPerWeek: 10,
+    roadmap: null,
+    currentStep: 0
+  };
+
+  var FALLBACK_MODELS = [
+    { id: "meta-llama/llama-3.3-70b-instruct:free", name: "Llama 3.3 70B Instruct (free)" },
+    { id: "google/gemini-2.0-flash-exp:free", name: "Gemini 2.0 Flash Exp (free)" },
+    { id: "deepseek/deepseek-chat-v3-0324:free", name: "DeepSeek V3 0324 (free)" },
+    { id: "qwen/qwen-2.5-72b-instruct:free", name: "Qwen 2.5 72B Instruct (free)" },
+    { id: "mistralai/mistral-small-3.1-24b-instruct:free", name: "Mistral Small 3.1 24B (free)" }
+  ];
+
+  var CERT_PROVIDER_URLS = {
+    "google": "https://grow.google/certificates/",
+    "aws": "https://aws.amazon.com/certification/",
+    "amazon web services": "https://aws.amazon.com/certification/",
+    "coursera": "https://www.coursera.org/",
+    "hubspot": "https://academy.hubspot.com/certification",
+    "meta": "https://www.coursera.org/professional-certificates/meta-certificates",
+    "microsoft": "https://learn.microsoft.com/en-us/credentials/",
+    "freecodecamp": "https://www.freecodecamp.org/learn",
+    "ibm": "https://www.ibm.com/training/certification",
+    "cisco": "https://www.netacad.com/certifications"
+  };
+
+  /* ============ DOM SHORTCUTS ============ */
+  function $(id){ return document.getElementById(id); }
+
+  /* ============ ERROR BANNER ============ */
+  function showError(msg){
+    $("errorBannerText").textContent = msg;
+    $("errorBanner").classList.add("show");
+  }
+  function hideError(){
+    $("errorBanner").classList.remove("show");
+  }
+  $("errorBannerClose").addEventListener("click", hideError);
+
+  /* ============ TRAIL PROGRESS ============ */
+  var wpPositions = [60, 260, 400, 540]; // approximate cumulative path lengths not exact, using simple offset mapping
+  function updateTrail(step){
+    for(var i=0;i<4;i++){
+      var el = $("wp"+i);
+      el.classList.remove("active","done");
+      if(i < step) el.classList.add("done");
+      else if(i === step) el.classList.add("active");
+    }
+    var pathLen = 900;
+    var frac = step / 3;
+    var fill = $("trailFill");
+    fill.setAttribute("stroke-dashoffset", String(pathLen - (pathLen * frac)));
+  }
+
+  function showStep(step){
+    ["step1","step2","step3","step4"].forEach(function(id, idx){
+      $(id).classList.toggle("hidden", idx !== step);
+    });
+    state.currentStep = step;
+    updateTrail(step);
+    window.scrollTo({top:0, behavior:"smooth"});
+  }
+
+  /* ============ MODEL LIST ============ */
+  function populateModelSelect(models){
+    var sel = $("modelSelect");
+    sel.innerHTML = "";
+    models.forEach(function(m){
+      var opt = document.createElement("option");
+      opt.value = m.id;
+      opt.textContent = m.name || m.id;
+      sel.appendChild(opt);
+    });
+    if(models.length){ state.model = models[0].id; }
+  }
+
+  function fetchFreeModels(){
+    var sel = $("modelSelect");
+    sel.innerHTML = "<option>Loading models…</option>";
+    fetch("https://openrouter.ai/api/v1/models")
+      .then(function(res){
+        if(!res.ok) throw new Error("bad response");
+        return res.json();
+      })
+      .then(function(data){
+        var list = (data && data.data) ? data.data : [];
+        var free = list.filter(function(m){
+          return m.pricing && m.pricing.prompt === "0" && m.pricing.completion === "0";
+        }).map(function(m){
+          return { id: m.id, name: m.name || m.id };
+        });
+        if(free.length === 0) throw new Error("no free models");
+        populateModelSelect(free);
+      })
+      .catch(function(){
+        populateModelSelect(FALLBACK_MODELS);
+      });
+  }
+
+  $("refreshModels").addEventListener("click", fetchFreeModels);
+  $("modelSelect").addEventListener("change", function(){ state.model = this.value; });
+
+  /* ============ OPENROUTER CALL ============ */
+  function extractJSON(text){
+    if(!text) throw new Error("Empty response from model.");
+    var cleaned = text.trim();
+    cleaned = cleaned.replace(/^```[a-zA-Z]*\s*/,"").replace(/```\s*$/,"");
+    var firstBrace = cleaned.indexOf("{");
+    var firstBracket = cleaned.indexOf("[");
+    var start;
+    if(firstBrace === -1) start = firstBracket;
+    else if(firstBracket === -1) start = firstBrace;
+    else start = Math.min(firstBrace, firstBracket);
+    if(start === -1) throw new Error("No JSON found in model response.");
+    var openChar = cleaned[start];
+    var closeChar = openChar === "{" ? "}" : "]";
+    var depth = 0, end = -1;
+    for(var i = start; i < cleaned.length; i++){
+      if(cleaned[i] === openChar) depth++;
+      else if(cleaned[i] === closeChar){
+        depth--;
+        if(depth === 0){ end = i; break; }
+      }
+    }
+    if(end === -1) throw new Error("Could not find matching close for JSON in model response.");
+    var jsonStr = cleaned.slice(start, end+1);
+    return JSON.parse(jsonStr);
+  }
+
+  function callOpenRouter(systemPrompt, userPrompt){
+    if(!state.apiKey){
+      return Promise.reject({ friendly: "Add your OpenRouter API key in Setup before continuing." });
+    }
+    if(!state.model){
+      return Promise.reject({ friendly: "No model selected. Try refreshing the model list." });
+    }
+    return fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer " + state.apiKey
+      },
+      body: JSON.stringify({
+        model: state.model,
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt }
+        ]
+      })
+    }).then(function(res){
+      if(res.status === 401){
+        throw { friendly: "That API key was rejected (401). Double-check it in Setup." };
+      }
+      if(res.status === 429){
+        throw { friendly: "Rate limit hit (429). Wait a moment, or switch to a different free model." };
+      }
+      if(!res.ok){
+        throw { friendly: "OpenRouter returned an error (" + res.status + "). Please try again." };
+      }
+      return res.json();
+    }).then(function(data){
+      if(!data || !data.choices || !data.choices[0] || !data.choices[0].message){
+        throw { friendly: "The model returned an unexpected response shape. Try again or switch models." };
+      }
+      var content = data.choices[0].message.content;
+      try{
+        return extractJSON(content);
+      }catch(e){
+        throw { friendly: "Couldn't parse the model's response as JSON. Try again or switch models." };
+      }
+    }).catch(function(err){
+      if(err && err.friendly) throw err;
+      throw { friendly: "Network error reaching OpenRouter. Check your connection and try again." };
+    });
+  }
+
+  /* ============ STEP 1: PROFILE INTERACTIONS ============ */
+  $("salaryToggle").addEventListener("click", function(e){
+    var btn = e.target.closest("button");
+    if(!btn) return;
+    Array.prototype.forEach.call(this.querySelectorAll("button"), function(b){ b.classList.remove("active"); });
+    btn.classList.add("active");
+    state.profile.salaryMode = btn.dataset.val;
+  });
+
+  $("salarySlider").addEventListener("input", function(){
+    state.profile.salaryLPA = this.value;
+    $("salaryValue").textContent = this.value + " LPA";
+  });
+
+  function wireSingleChipGroup(id, targetSetter){
+    $(id).addEventListener("click", function(e){
+      var chip = e.target.closest(".chip");
+      if(!chip) return;
+      Array.prototype.forEach.call(this.querySelectorAll(".chip"), function(c){ c.classList.remove("selected"); });
+      chip.classList.add("selected");
+      targetSetter(chip.dataset.val);
+    });
+  }
+
+  function wireMultiChipGroup(id, arrRef){
+    $(id).addEventListener("click", function(e){
+      var chip = e.target.closest(".chip");
+      if(!chip) return;
+      var val = chip.dataset.val;
+      var idx = arrRef.indexOf(val);
+      if(idx === -1){
+        arrRef.push(val);
+        chip.classList.add("selected");
+      }else{
+        arrRef.splice(idx,1);
+        chip.classList.remove("selected");
+      }
+    });
+  }
+
+  wireSingleChipGroup("experienceChips", function(v){ state.profile.experience = v; });
+  wireMultiChipGroup("interestChips", state.profile.interests);
+  wireMultiChipGroup("workstyleChips", state.profile.workstyle);
+
+  function profileHasContent(){
+    var p = state.profile;
+    return !!(p.education || p.fieldOfStudy || p.companyStatus || p.location ||
+      p.experience || p.interests.length || p.workstyle.length);
+  }
+
+  function buildProfileSummary(){
+    var p = state.profile;
+    var lines = [];
+    if(p.education) lines.push("Education level: " + p.education);
+    if(p.fieldOfStudy) lines.push("Field of study / domain: " + p.fieldOfStudy);
+    if(p.companyStatus) lines.push("Current company / status: " + p.companyStatus);
+    if(p.location) lines.push("Location: " + p.location);
+    lines.push(p.salaryMode + " salary: approximately " + p.salaryLPA + " LPA");
+    if(p.experience) lines.push("Experience level: " + p.experience);
+    if(p.interests.length) lines.push("Interests / skill areas: " + p.interests.join(", "));
+    if(p.workstyle.length) lines.push("Work style preference: " + p.workstyle.join(", "));
+    return lines.join("\n");
+  }
+
+  var CAREER_SYSTEM_PROMPT = "You are a career guidance engine. Respond with STRICT JSON ONLY — no markdown, no code fences, no commentary before or after. " +
+    "Output a JSON array of exactly 4 objects, each with keys: title (string), description (string, 1-2 sentences), " +
+    "avg_salary (string, e.g. '8-12 LPA' or a range appropriate to the student's location/currency), " +
+    "growth_outlook (string, one of 'High', 'Moderate', 'Emerging', 'Stable'), match_score (integer 0-100). " +
+    "Base the suggestions on the profile given. Output only the JSON array.";
+
+  function requestCareerMatches(){
+    hideError();
+    if(!profileHasContent()){
+      showError("Fill in at least one profile field before finding career matches.");
+      return;
+    }
+    $("loadingStep1").classList.remove("hidden");
+    $("findMatchesBtn").disabled = true;
+    var userPrompt = "Student profile:\n" + buildProfileSummary() + "\n\nSuggest 4 career paths as the specified JSON array.";
+    callOpenRouter(CAREER_SYSTEM_PROMPT, userPrompt)
+      .then(function(json){
+        if(!Array.isArray(json)) throw { friendly: "Expected a list of career suggestions but got something else. Try again." };
+        state.careers = json;
+        state.selectedCareerIndex = null;
+        renderCareerGrid();
+        showStep(1);
+      })
+      .catch(function(err){
+        showError(err.friendly || "Something went wrong finding career matches.");
+      })
+      .finally(function(){
+        $("loadingStep1").classList.add("hidden");
+        $("findMatchesBtn").disabled = false;
+      });
+  }
+
+  $("findMatchesBtn").addEventListener("click", requestCareerMatches);
+
+  /* ============ STEP 2: CAREER GRID ============ */
+  function renderCareerGrid(){
+    var grid = $("careerGrid");
+    grid.innerHTML = "";
+    state.careers.forEach(function(c, idx){
+      var card = document.createElement("div");
+      card.className = "career-card" + (state.selectedCareerIndex === idx ? " selected" : "");
+      card.dataset.idx = idx;
+      var salary = c.avg_salary ? String(c.avg_salary) : "—";
+      var growth = c.growth_outlook ? String(c.growth_outlook) : "—";
+      var match = (c.match_score !== undefined && c.match_score !== null) ? String(c.match_score) : "—";
+      card.innerHTML =
+        "<h3></h3>" +
+        "<p></p>" +
+        "<div class='badge-row'>" +
+          "<span class='badge salary'>" + escapeHtml(salary) + "</span>" +
+          "<span class='badge growth'>" + escapeHtml(growth) + " growth</span>" +
+          "<span class='badge match'>" + escapeHtml(match) + "% match</span>" +
+        "</div>";
+      card.querySelector("h3").textContent = c.title || "Untitled path";
+      card.querySelector("p").textContent = c.description || "";
+      card.addEventListener("click", function(){
+        state.selectedCareerIndex = idx;
+        renderCareerGrid();
+        $("continueTo3Btn").disabled = false;
+      });
+      grid.appendChild(card);
+    });
+  }
+
+  function escapeHtml(s){
+    var div = document.createElement("div");
+    div.textContent = s;
+    return div.innerHTML;
+  }
+
+  $("backTo1Btn").addEventListener("click", function(){ showStep(0); });
+
+  $("regenerateBtn").addEventListener("click", function(){
+    hideError();
+    $("loadingStep2").classList.remove("hidden");
+    $("regenerateBtn").disabled = true;
+    var userPrompt = "Student profile:\n" + buildProfileSummary() + "\n\nSuggest 4 different career paths as the specified JSON array. Vary from typical obvious answers where reasonable.";
+    callOpenRouter(CAREER_SYSTEM_PROMPT, userPrompt)
+      .then(function(json){
+        if(!Array.isArray(json)) throw { friendly: "Expected a list of career suggestions but got something else. Try again." };
+        state.careers = json;
+        state.selectedCareerIndex = null;
+        $("continueTo3Btn").disabled = true;
+        renderCareerGrid();
+      })
+      .catch(function(err){
+        showError(err.friendly || "Something went wrong regenerating matches.");
+      })
+      .finally(function(){
+        $("loadingStep2").classList.add("hidden");
+        $("regenerateBtn").disabled = false;
+      });
+  });
+
+  $("continueTo3Btn").addEventListener("click", function(){
+    if(state.selectedCareerIndex === null) return;
+    showStep(2);
+  });
+
+  /* ============ STEP 3: TIMEFRAME ============ */
+  wireSingleChipGroup("timeframeChips", function(v){ state.timeframe = v; });
+
+  $("hoursSlider").addEventListener("input", function(){
+    state.hoursPerWeek = this.value;
+    $("hoursValue").textContent = this.value + " hrs/week";
+  });
+
+  $("backTo2Btn").addEventListener("click", function(){ showStep(1); });
+
+  var ROADMAP_SYSTEM_PROMPT = "You are a curriculum design engine. Respond with STRICT JSON ONLY — no markdown, no code fences, no commentary before or after. " +
+    "Output a single JSON object with keys: " +
+    "phases (array of 3 to 5 objects, each with: name (string, e.g. 'Foundation', 'Core Skills', 'Specialization', 'Job Prep'), " +
+    "duration (string, a portion of the total timeframe), " +
+    "topics (array of objects, each with: topic (string), time_estimate (string), " +
+    "search_query (string, a short plain-text search phrase suitable for searching YouTube/Google for this topic), " +
+    "milestone (string, a small project or checkpoint proving mastery))), " +
+    "certifications (array of objects, each with: name (string), provider (string, one of a well-known provider like Google, AWS, Coursera, HubSpot, Meta, Microsoft, freeCodeCamp, IBM, Cisco where applicable, else the actual provider name)). " +
+    "Size the phases and topics realistically to fit the given total timeframe and weekly hours. Output only the JSON object.";
+
+  function requestRoadmap(){
+    hideError();
+    if(!state.timeframe){
+      showError("Pick a timeframe before building your roadmap.");
+      return;
+    }
+    var career = state.careers[state.selectedCareerIndex];
+    $("loadingStep3").classList.remove("hidden");
+    $("buildRoadmapBtn").disabled = true;
+    var userPrompt = "Target career: " + (career.title || "") + " — " + (career.description || "") +
+      "\nStudent profile:\n" + buildProfileSummary() +
+      "\n\nTimeframe: " + state.timeframe + "\nAvailable time: " + state.hoursPerWeek + " hours/week" +
+      "\n\nBuild the personalized learning roadmap as the specified JSON object.";
+    callOpenRouter(ROADMAP_SYSTEM_PROMPT, userPrompt)
+      .then(function(json){
+        if(!json || !Array.isArray(json.phases)) throw { friendly: "Expected a roadmap with phases but got something else. Try again." };
+        state.roadmap = json;
+        renderRoadmap();
+        showStep(3);
+      })
+      .catch(function(err){
+        showError(err.friendly || "Something went wrong building your roadmap.");
+      })
+      .finally(function(){
+        $("loadingStep3").classList.add("hidden");
+        $("buildRoadmapBtn").disabled = false;
+      });
+  }
+
+  $("buildRoadmapBtn").addEventListener("click", requestRoadmap);
+
+  /* ============ STEP 4: ROADMAP RENDER ============ */
+  function ytLink(q){ return "https://www.youtube.com/results?search_query=" + encodeURIComponent(q); }
+  function courseLink(q){ return "https://www.google.com/search?q=" + encodeURIComponent("best course " + q); }
+  function docsLink(q){ return "https://www.google.com/search?q=" + encodeURIComponent(q + " official docs"); }
+
+  function certLink(provider, name){
+    var key = (provider || "").toLowerCase().trim();
+    for(var k in CERT_PROVIDER_URLS){
+      if(key.indexOf(k) !== -1){ return CERT_PROVIDER_URLS[k]; }
+    }
+    return "https://www.google.com/search?q=" + encodeURIComponent((name || "") + " " + (provider || "") + " certification");
+  }
+
+  function renderRoadmap(){
+    var career = state.careers[state.selectedCareerIndex];
+    $("roadmapSubtitle").textContent = (career.title || "Your path") + " · " + state.timeframe + " · " + state.hoursPerWeek + " hrs/week";
+
+    var container = $("roadmapContent");
+    container.innerHTML = "";
+
+    state.roadmap.phases.forEach(function(phase, pIdx){
+      var phaseEl = document.createElement("div");
+      phaseEl.className = "phase";
+      phaseEl.innerHTML = "<div class='phase-dot'></div><h3></h3><span class='phase-duration'></span>";
+      phaseEl.querySelector("h3").textContent = phase.name || ("Phase " + (pIdx+1));
+      phaseEl.querySelector(".phase-duration").textContent = phase.duration || "";
+
+      (phase.topics || []).forEach(function(topic, tIdx){
+        var topicEl = document.createElement("div");
+        topicEl.className = "topic-card";
+        var cbId = "topic-" + pIdx + "-" + tIdx;
+        var q = topic.search_query || topic.topic || "";
+
+        var top = document.createElement("div");
+        top.className = "topic-top";
+        var cb = document.createElement("input");
+        cb.type = "checkbox";
+        cb.id = cbId;
+        var titleEl = document.createElement("label");
+        titleEl.className = "topic-title";
+        titleEl.setAttribute("for", cbId);
+        titleEl.textContent = topic.topic || "Untitled topic";
+        var timeEl = document.createElement("span");
+        timeEl.className = "topic-time";
+        timeEl.textContent = topic.time_estimate || "";
+
+        cb.addEventListener("change", function(){
+          titleEl.classList.toggle("done", cb.checked);
+        });
+
+        top.appendChild(cb);
+        top.appendChild(titleEl);
+        top.appendChild(timeEl);
+
+        var milestone = document.createElement("div");
+        milestone.className = "topic-milestone";
+        milestone.textContent = topic.milestone ? ("Milestone: " + topic.milestone) : "";
+
+        var links = document.createElement("div");
+        links.className = "topic-links";
+        links.innerHTML =
+          "<a target='_blank' rel='noopener'>YouTube</a>" +
+          "<a target='_blank' rel='noopener'>Find a course</a>" +
+          "<a target='_blank' rel='noopener'>Docs</a>";
+        var a = links.querySelectorAll("a");
+        a[0].href = ytLink(q);
+        a[1].href = courseLink(q);
+        a[2].href = docsLink(q);
+
+        topicEl.appendChild(top);
+        topicEl.appendChild(milestone);
+        topicEl.appendChild(links);
+        phaseEl.appendChild(topicEl);
+      });
+
+      container.appendChild(phaseEl);
+    });
+
+    if(state.roadmap.certifications && state.roadmap.certifications.length){
+      var certSection = document.createElement("div");
+      certSection.className = "cert-section";
+      certSection.innerHTML = "<h3 style='margin-bottom:12px; font-size:16px;'>Suggested certifications</h3><div class='cert-list'></div>";
+      var list = certSection.querySelector(".cert-list");
+      state.roadmap.certifications.forEach(function(cert){
+        var item = document.createElement("a");
+        item.className = "cert-item";
+        item.target = "_blank";
+        item.rel = "noopener";
+        item.href = certLink(cert.provider, cert.name);
+        item.innerHTML = "<span class='cert-name'></span><span class='cert-provider'></span>";
+        item.querySelector(".cert-name").textContent = cert.name || "Certification";
+        item.querySelector(".cert-provider").textContent = cert.provider || "";
+        list.appendChild(item);
+      });
+      container.appendChild(certSection);
+    }
+  }
+
+  $("startOverBtn").addEventListener("click", function(){
+    state.careers = [];
+    state.selectedCareerIndex = null;
+    state.timeframe = null;
+    state.roadmap = null;
+    document.querySelectorAll("#timeframeChips .chip").forEach(function(c){ c.classList.remove("selected"); });
+    $("continueTo3Btn").disabled = true;
+    showStep(0);
+  });
+
+  $("exportBtn").addEventListener("click", function(){ window.print(); });
+
+  $("apiKey").addEventListener("input", function(){ state.apiKey = this.value; });
+
+  /* ============ INIT ============ */
+  fetchFreeModels();
+  showStep(0);
+
+})();
+</script>
+</body>
+</html>
