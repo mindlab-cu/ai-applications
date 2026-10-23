@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ngrok playground: send data from Colab to a web page</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Overpass:wght@400;600;800&family=Overpass+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F2F5F9; --surface:#FFFFFF; --surface-2:#E9EEF5; --ink:#17202C; --muted:#586475; --rule:#CBD3DE;
+  --net:#2563C9; --tunnel:#7B4BD1; --colab:#E39A00; --res:#1C9A68; --err:#D23F38;
+  --code-bg:#1B2330; --code-ink:#E4E9F1; --code-dim:#8C99AD;
+  --font:"Overpass","Segoe UI",system-ui,-apple-system,sans-serif;
+  --mono:"Overpass Mono",ui-monospace,Menlo,Consolas,monospace;
+  color-scheme:light; box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#11161E; --surface:#19202B; --surface-2:#232C39; --ink:#E7ECF3; --muted:#9AA6B6; --rule:#323D4C;
+  --net:#5B93F0; --tunnel:#A27CF0; --colab:#F2B233; --res:#3CC48D; --err:#F0685F;
+  --code-bg:#0C1118; color-scheme:dark;}}
+:root[data-theme="dark"]{
+  --bg:#11161E; --surface:#19202B; --surface-2:#232C39; --ink:#E7ECF3; --muted:#9AA6B6; --rule:#323D4C;
+  --net:#5B93F0; --tunnel:#A27CF0; --colab:#F2B233; --res:#3CC48D; --err:#F0685F;
+  --code-bg:#0C1118; color-scheme:dark;}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);font-size:16px;line-height:1.5}
+.layout{max-width:1480px;margin:0 auto;padding:22px 18px;display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:18px;align-items:start}
+.main{min-width:0}
+h1{font-size:clamp(24px,3.6vw,38px);line-height:1.1;margin:0 0 6px;font-weight:800;letter-spacing:-.01em}
+.lede{color:var(--muted);margin:0 0 16px;max-width:70ch}
+code{font:500 .92em var(--mono);background:var(--surface-2);padding:1px 5px;border-radius:4px}
+
+/* progress */
+.progress{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 14px;padding:0;list-style:none}
+.progress li{font:600 14px var(--font);padding:6px 12px 4px;border-radius:999px;border:2px solid var(--rule);color:var(--muted);background:var(--surface)}
+.progress li.done{border-color:var(--res);color:var(--res)}
+.progress li.now{border-color:var(--ink);color:var(--ink)}
+
+/* map */
+.map{position:sticky;top:env(safe-area-inset-top,0px);z-index:4;box-shadow:0 6px 18px rgba(0,0,0,.08);background:var(--surface);border:1px solid var(--rule);border-radius:16px;overflow-x:auto}
+.map svg{display:block;min-width:760px;width:100%;height:auto}
+.st-name{font:700 14px var(--font);fill:var(--ink)}
+.st-sub{font:400 12px var(--font);fill:var(--muted)}
+.zone{font:600 12.5px var(--font)}
+.station .ring{fill:var(--surface);stroke:var(--rule);stroke-width:3.5;transition:stroke .3s}
+.station.on .ring{stroke:var(--ink)}
+.station .icon{font-size:22px;opacity:.35;transition:opacity .3s}
+.station.on .icon{opacity:1}
+.station .halo{fill:none;stroke-width:4;opacity:0;transition:opacity .25s}
+.station.here .halo{opacity:.8}
+.pk-label{font:600 13px var(--mono);fill:#fff}
+
+/* stage */
+.stage{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px}
+@media (max-width:1180px){.stage{grid-template-columns:1fr}}
+.pane{background:var(--surface);border:1px solid var(--rule);border-radius:16px;overflow:hidden;display:flex;flex-direction:column}
+.pane-head{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--rule);background:var(--surface-2)}
+.pane-head strong{font-size:15px}
+.pane-head .sp{flex:1}
+.badge{font:600 12.5px var(--font);padding:3px 9px 1px;border-radius:999px;background:var(--surface);border:1px solid var(--rule);color:var(--muted)}
+.badge.live{color:var(--res);border-color:var(--res)}
+.badge.dead{color:var(--err);border-color:var(--err)}
+.small-btn{font:600 13px var(--font);padding:5px 10px 3px;border-radius:8px;border:1.5px solid var(--err);color:var(--err);background:transparent;cursor:pointer}
+
+/* colab cells */
+.cells{padding:12px;display:flex;flex-direction:column;gap:10px}
+.cell{display:grid;grid-template-columns:40px 1fr;gap:8px;align-items:start}
+.run{width:36px;height:36px;border-radius:50%;border:2px solid var(--ink);background:var(--surface);color:var(--ink);cursor:pointer;font-size:14px;display:grid;place-items:center;margin-top:2px}
+.run:disabled{opacity:.35;cursor:default}
+.run.ok{background:var(--res);border-color:var(--res);color:#fff}
+.run.bad{background:var(--err);border-color:var(--err);color:#fff}
+.cell-body{min-width:0}
+.cell-title{font:600 14px var(--font);margin:0 0 4px}
+.src{margin:0;background:var(--code-bg);color:var(--code-ink);font:400 12.5px/1.55 var(--mono);padding:8px 10px;border-radius:8px;overflow-x:auto;white-space:pre}
+.src .k{color:#FFD27A}
+.src .c{color:var(--code-dim)}
+.out{margin:4px 0 0;font:400 12.5px/1.5 var(--mono);white-space:pre-wrap;color:var(--muted);min-height:0}
+.out.ok{color:var(--res)} .out.bad{color:var(--err)}
+.files{margin:0 12px 12px;padding:8px 12px;border:1px dashed var(--rule);border-radius:10px;font-size:13.5px;color:var(--muted)}
+.files b{color:var(--ink)}
+
+/* browser */
+.chrome{display:flex;gap:8px;align-items:center;padding:9px 12px;border-bottom:1px solid var(--rule);background:var(--surface-2)}
+.dots3{display:flex;gap:5px}.dots3 i{width:10px;height:10px;border-radius:50%;background:var(--rule)}
+.addr{flex:1;min-width:0;font:400 12.5px var(--mono);background:var(--surface);border:1px solid var(--rule);border-radius:999px;padding:5px 12px 3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--muted)}
+.page{padding:16px;flex:1;display:flex;flex-direction:column;gap:12px}
+.empty{flex:1;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:10px;color:var(--muted);padding:12px 4px}
+.btn{font:700 15px var(--font);padding:10px 16px 8px;border-radius:10px;border:2px solid var(--ink);background:var(--ink);color:var(--bg);cursor:pointer}
+.btn.ghost{background:transparent;color:var(--ink)}
+.btn:disabled{opacity:.35;cursor:default}
+.urlrow{font-size:13px;color:var(--muted)}
+.urlrow span{font-family:var(--mono);color:var(--ink);word-break:break-all}
+.form{display:grid;grid-template-columns:1fr 1fr;gap:10px 14px}
+.form label{display:flex;flex-direction:column;gap:3px;font:600 13px var(--font)}
+.form input,.form select{font:500 15px var(--font);padding:7px 9px 5px;border:1.5px solid var(--rule);border-radius:8px;background:var(--surface);color:var(--ink)}
+.form .hint{grid-column:1/-1;font-size:12.5px;color:var(--muted);margin:-4px 0 0}
+.actions{display:flex;flex-wrap:wrap;gap:8px}
+.result{padding:10px 12px;border-radius:10px;background:var(--surface-2);font-weight:600;min-height:44px}
+.result.pos{background:color-mix(in srgb,var(--err) 16%,var(--surface));color:var(--err)}
+.result.neg{background:color-mix(in srgb,var(--res) 16%,var(--surface));color:var(--res)}
+.result.fail{background:color-mix(in srgb,var(--err) 12%,var(--surface));color:var(--err);font-family:var(--mono);font-size:13px;font-weight:500}
+.chart{background:#fff;border-radius:10px;border:1px solid var(--rule)}
+.whatif{margin:0 16px 16px;padding:10px 12px;border:2px dashed var(--err);border-radius:12px}
+.whatif p{margin:0 0 6px;font:700 14px var(--font);color:var(--err)}
+.whatif label{display:flex;gap:8px;align-items:flex-start;font-size:14px;margin:4px 0;cursor:pointer}
+.whatif input{margin-top:3px;accent-color:var(--err)}
+
+/* nudge */
+.nudge{animation:nudge 1.4s ease-in-out infinite}
+@keyframes nudge{0%,100%{box-shadow:0 0 0 0 color-mix(in srgb,var(--net) 55%,transparent)}50%{box-shadow:0 0 0 7px color-mix(in srgb,var(--net) 0%,transparent)}}
+@media (prefers-reduced-motion:reduce){.nudge{animation:none;outline:3px solid var(--net);outline-offset:2px}}
+
+/* caption side panel */
+.caption{position:sticky;top:calc(12px + env(safe-area-inset-top,0px));z-index:5;background:var(--ink);color:var(--bg);border-radius:16px;padding:18px;max-height:calc(100vh - 24px - env(safe-area-inset-top,0px));overflow-y:auto}
+.cap-inner{display:flex;flex-direction:column;gap:14px}
+.cap-meta{font:600 13px var(--font);opacity:.7;margin:0}
+.cap-title{font:800 22px/1.2 var(--font);margin:4px 0 8px}
+.cap-text{margin:0;font-size:16px;line-height:1.55;opacity:.95}
+.cap-text code{background:rgba(127,127,127,.25);color:inherit}
+.cap-data{margin:0;font:400 12.5px/1.55 var(--mono);background:rgba(127,127,127,.2);padding:9px 11px;border-radius:8px;white-space:pre-wrap;word-break:break-word;display:none}
+.cap-data.show{display:block}
+.cap-ctrl{display:flex;flex-direction:column;gap:8px}
+.cap-ctrl button{font:700 16px var(--font);padding:12px 18px 10px;border-radius:10px;border:2px solid var(--bg);background:var(--bg);color:var(--ink);cursor:pointer}
+.cap-ctrl button:disabled{opacity:.3;cursor:default}
+.mode{display:flex;border:1.5px solid color-mix(in srgb,var(--bg) 50%,transparent);border-radius:8px;overflow:hidden}
+.mode button{flex:1;font:600 13px var(--font);padding:6px 8px 4px;border:0;border-radius:0;background:transparent;color:var(--bg)}
+.mode button[aria-pressed="true"]{background:color-mix(in srgb,var(--bg) 22%,transparent)}
+.cap-log{border-top:1px solid color-mix(in srgb,var(--bg) 25%,transparent);padding-top:12px}
+.cap-log ol{margin:6px 0 0;padding-left:22px;font-size:14px;opacity:.75}
+.cap-log li{margin-bottom:3px}
+.cap-log li:last-child{opacity:1;font-weight:700}
+@media (max-width:980px){
+  .layout{grid-template-columns:1fr}
+  .caption{top:auto;bottom:0;border-radius:16px 16px 0 0;max-height:46vh;margin:0 -18px -22px;padding-bottom:calc(14px + env(safe-area-inset-bottom,0px))}
+  .cap-ctrl{flex-direction:row}.cap-ctrl button{flex:1}
+  .cap-log{display:none}
+}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--net);outline-offset:2px}
+</style>
+</head>
+<body>
+<div class="layout">
+<main class="main">
+  <h1>ngrok playground: from Colab to your web page</h1>
+  <p class="lede">Do it yourself: run the notebook cells on the left, open the web page on the right, then send data and follow it hop by hop on the map. The dark panel explains what is happening at each moment.</p>
+  <ol class="progress" id="progress">
+    <li data-p="1">1. Run the notebook</li>
+    <li data-p="2">2. Open the web page</li>
+    <li data-p="3">3. Send a prediction</li>
+    <li data-p="4">4. Fetch a chart</li>
+    <li data-p="5">5. Break something</li>
+  </ol>
+
+  <div class="map"><svg id="map" viewBox="0 0 1000 200" role="img" aria-label="Path: model, Flask and ngrok agent inside Colab, firewall, ngrok cloud, internet, your browser"></svg></div>
+
+  <div class="stage">
+    <section class="pane" aria-label="Google Colab notebook">
+      <div class="pane-head"><strong>Google Colab</strong><span class="badge" id="rtBadge">runtime connected</span><span class="sp"></span><button class="small-btn" id="stopRt">Disconnect runtime</button></div>
+      <div class="cells" id="cells"></div>
+      <div class="files" id="files"></div>
+    </section>
+
+    <section class="pane" aria-label="Your web browser">
+      <div class="chrome"><span class="dots3"><i></i><i></i><i></i></span><span class="addr" id="addr">New tab</span></div>
+      <div class="page" id="page"></div>
+      <div class="whatif">
+        <p>What if…? Tick one, then send again</p>
+        <label><input type="checkbox" data-break="nocors"> <span>Flask has no CORS lines</span></label>
+        <label><input type="checkbox" data-break="nowarn"> <span>JavaScript forgets the <code>ngrok-skip-browser-warning</code> header</span></label>
+        <label><input type="checkbox" data-break="badkey"> <span>The HTML field is renamed to <code>cholesterol</code>, but Flask still reads <code>data['chol']</code></span></label>
+        <p style="color:var(--muted);font:400 13.5px var(--font);margin:6px 0 0">Also try <b>Disconnect runtime</b>, or run cell 4 again without reopening the page.</p>
+      </div>
+    </section>
+  </div>
+</main>
+
+<aside class="caption" role="region" aria-live="polite" aria-label="What is happening now">
+  <div class="cap-inner">
+    <div class="cap-ctrl">
+      <button id="nextHop" disabled>Next hop ▸</button>
+      <div class="mode" role="group" aria-label="Playback">
+        <button id="mStep" aria-pressed="true">Step by step</button>
+        <button id="mAuto" aria-pressed="false">Auto play</button>
+      </div>
+    </div>
+    <div class="cap-main">
+      <p class="cap-meta" id="capMeta">Start here</p>
+      <p class="cap-title" id="capTitle">Run the notebook cells, top to bottom</p>
+      <p class="cap-text" id="capText">Press the round ▶ button on the first Colab cell. The pulsing button is always your suggested next move.</p>
+    </div>
+    <pre class="cap-data" id="capData"></pre>
+    <div class="cap-log"><p class="cap-meta">Hops so far</p><ol id="capLog"></ol></div>
+  </div>
+</aside>
+</div>
+
+<script>
+(() => {
+// ================= MAP =================
+const NS='http://www.w3.org/2000/svg', svg=document.getElementById('map');
+const el=(t,a={},p=svg)=>{const n=document.createElementNS(NS,t);for(const k in a)n.setAttribute(k,a[k]);p.appendChild(n);return n;};
+const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const Y=95, WALL=470;
+const ST={
+  model:{x:65,  icon:'🧠', name:'Model',      sub:'scaler + GaussianNB'},
+  flask:{x:205, icon:'🐍', name:'Flask',      sub:'localhost:5000'},
+  agent:{x:350, icon:'🚇', name:'ngrok agent',sub:'inside Colab'},
+  cloud:{x:600, icon:'☁️', name:'ngrok cloud',sub:'owns the public URL'},
+  internet:{x:770,icon:'🌐',name:'Internet',  sub:'Wi-Fi, ISP, routers'},
+  browser:{x:930,icon:'💻',name:'Your browser',sub:'index.html'}
+};
+el('rect',{x:12,y:22,width:442,height:168,rx:14,fill:'none',stroke:'var(--colab)','stroke-width':2.5,'stroke-dasharray':'7 6'});
+el('text',{x:24,y:16,class:'zone',fill:'var(--colab)'}).textContent='Inside the Google Colab machine';
+el('text',{x:490,y:16,class:'zone',fill:'var(--net)'}).textContent='Public internet';
+const hatch=el('pattern',{id:'h',width:8,height:8,patternUnits:'userSpaceOnUse',patternTransform:'rotate(45)'},el('defs'));
+el('line',{x1:0,y1:0,x2:0,y2:8,stroke:'var(--err)','stroke-width':4},hatch);
+el('rect',{x:WALL-7,y:22,width:14,height:168,fill:'url(#h)',stroke:'var(--err)','stroke-width':1.5});
+el('text',{x:WALL+12,y:186,class:'zone',fill:'var(--err)'}).textContent='Firewall: blocks connections coming in';
+const segs={};
+const line=(a,b,c,id)=>{segs[id]=el('line',{x1:ST[a].x,y1:Y,x2:ST[b].x,y2:Y,stroke:c,'stroke-width':8,'stroke-linecap':'round'});};
+line('model','flask','var(--colab)','mf'); line('flask','agent','var(--colab)','fa');
+const tubeBg=el('rect',{x:ST.agent.x,y:Y-14,width:ST.cloud.x-ST.agent.x,height:28,rx:14,fill:'var(--tunnel)',opacity:.18});
+line('agent','cloud','var(--tunnel)','tun');
+const tunLabel=el('text',{x:WALL-12,y:Y-30,class:'zone',fill:'var(--tunnel)','text-anchor':'end'});
+line('cloud','internet','var(--net)','ci'); line('internet','browser','var(--net)','ib');
+const stEl={};
+for(const k in ST){const s=ST[k],g=el('g',{class:'station'});
+  el('circle',{class:'halo',cx:s.x,cy:Y,r:30,stroke:'var(--net)'},g);
+  el('circle',{class:'ring',cx:s.x,cy:Y,r:22},g);
+  el('text',{class:'icon',x:s.x,y:Y+8,'text-anchor':'middle'},g).textContent=s.icon;
+  el('text',{class:'st-name',x:s.x,y:Y+48+(k==='agent'||k==='cloud'?12:0),'text-anchor':'middle'},g).textContent=s.name;
+  el('text',{class:'st-sub',x:s.x,y:Y+64+(k==='agent'||k==='cloud'?12:0),'text-anchor':'middle'},g).textContent=s.sub;
+  stEl[k]=g;}
+const failG=el('g');
+const pk=el('g',{opacity:0});
+const pkTag=el('rect',{rx:8,height:26,y:-62,fill:'var(--net)'},pk);
+const pkTxt=el('text',{class:'pk-label',y:-44,'text-anchor':'middle'},pk);
+el('line',{x1:0,y1:-36,x2:0,y2:-24,stroke:'var(--ink)','stroke-width':2},pk);
+const pkDot=el('circle',{r:11,fill:'var(--net)',stroke:'var(--surface)','stroke-width':3},pk);
+const KC={req:'--net',res:'--res',err:'--err',tun:'--tunnel',ctl:'--tunnel'};
+function setPk(x,kind,label){const c=css(KC[kind]||'--net');pk.setAttribute('transform',`translate(${x},${Y})`);pkDot.setAttribute('fill',c);pkTag.setAttribute('fill',c);
+  if(pkTxt.textContent!==label){pkTxt.textContent=label;const w=Math.max(44,pkTxt.getComputedTextLength()+22);pkTag.setAttribute('width',w);pkTag.setAttribute('x',-w/2);}}
+const X=k=>typeof k==='number'?k:(k==='wall'?WALL+16:ST[k].x);
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+async function move(m){const a=X(m.from),b=X(m.to);pk.setAttribute('opacity',1);
+  if(reduce){setPk(b,m.kind,m.label);return sleep(200);}
+  const dur=Math.max(500,Math.abs(b-a)*3.2),t0=performance.now();
+  await new Promise(res=>{const f=n=>{const t=Math.min(1,(n-t0)/dur),e=t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2;setPk(a+(b-a)*e,m.kind,m.label);t<1?requestAnimationFrame(f):res();};requestAnimationFrame(f);});}
+function here(keys){for(const k in stEl)stEl[k].classList.toggle('here',keys.includes(k));}
+function fail(k){const x=X(k);el('circle',{cx:x,cy:Y,r:30,fill:'none',stroke:'var(--err)','stroke-width':4},failG);
+  el('path',{d:`M${x-10} ${Y-10}L${x+10} ${Y+10}M${x+10} ${Y-10}L${x-10} ${Y+10}`,stroke:'var(--err)','stroke-width':4,'stroke-linecap':'round'},failG);}
+
+// ================= STATE =================
+const S={saved:false,installed:false,flask:false,tunnel:false,url:null,html:null,pageOpen:false,pageUrl:null,busy:false,ran:{},breaks:{},predicted:false,charted:false,broke:false};
+const $=id=>document.getElementById(id);
+const rand=()=>Math.random().toString(36).slice(2,8);
+
+function paintMap(){
+  stEl.model.classList.toggle('on',S.saved);
+  stEl.flask.classList.toggle('on',S.flask);
+  stEl.agent.classList.toggle('on',S.tunnel);
+  stEl.cloud.classList.toggle('on',S.tunnel);
+  stEl.internet.classList.add('on');
+  stEl.browser.classList.toggle('on',S.pageOpen);
+  segs.tun.setAttribute('stroke-dasharray',S.tunnel?'none':'3 10');
+  tubeBg.setAttribute('opacity',S.tunnel?.18:0);
+  tunLabel.textContent=S.tunnel?'tunnel open (started from inside)':'no tunnel yet';
+}
+
+// ================= CAPTION =================
+let mode='step', waiter=null;
+function cap(meta,title,text,data){
+  $('capMeta').textContent=meta; $('capTitle').textContent=title; $('capText').innerHTML=text;
+  const d=$('capData'); d.textContent=data||''; d.classList.toggle('show',!!data);
+  const log=$('capLog'); if(/^Hop 1 /.test(meta)||!/^Hop /.test(meta)) log.innerHTML='';
+  const li=document.createElement('li'); li.textContent=title; log.appendChild(li);
+  $('capData').parentElement.parentElement.scrollTop=0;
+}
+function waitNext(last){
+  const b=$('nextHop');
+  if(mode==='auto'){ b.disabled=true; return sleep(last?400:2600); }
+  b.disabled=false; b.textContent=last?'Done ✓':'Next hop ▸'; b.focus({preventScroll:true});
+  return new Promise(r=>{waiter=()=>{waiter=null;b.disabled=true;r();};});
+}
+$('nextHop').onclick=()=>waiter&&waiter();
+document.addEventListener('keydown',e=>{if((e.key===' '||e.key==='ArrowRight')&&waiter&&!e.target.closest('input,select,textarea')){e.preventDefault();waiter();}});
+$('mStep').onclick=()=>{mode='step';$('mStep').setAttribute('aria-pressed','true');$('mAuto').setAttribute('aria-pressed','false');};
+$('mAuto').onclick=()=>{mode='auto';$('mAuto').setAttribute('aria-pressed','true');$('mStep').setAttribute('aria-pressed','false');if(waiter)waiter();};
+
+async function runHops(hops){
+  S.busy=true; refresh(); failG.innerHTML='';
+  for(let i=0;i<hops.length;i++){
+    const h=hops[i];
+    cap(`Hop ${i+1} of ${hops.length}`,h.title,h.text,h.data);
+    here(h.at||[]);
+    if(h.moves) for(const m of h.moves){ here([m.from]); await move(m); here([m.to]); }
+    if(h.fail) fail(h.fail);
+    if(h.after) h.after();
+    await waitNext(i===hops.length-1);
+  }
+  pk.setAttribute('opacity',0); here([]);
+  S.busy=false; refresh();
+}
+
+// ================= COLAB CELLS =================
+const CELLS=[
+ {id:'save',title:'Save the trained model and scaler',
+  src:`<span class="k">pickle.dump</span>(model,  open('/content/model.pkl','wb'))
+<span class="k">pickle.dump</span>(scaler, open('/content/scaler.pkl','wb'))`},
+ {id:'pip',title:'Install Flask helpers and pyngrok',
+  src:`!pip install -q flask-cors pyngrok`},
+ {id:'flask',title:'Start Flask on port 5000',
+  src:`model  = pickle.load(open('/content/model.pkl','rb'))
+app = Flask(__name__); CORS(app)
+<span class="c"># /predict and /get_eda routes …</span>
+threading.Thread(target=lambda: app.run(<span class="k">port=5000</span>)).start()`},
+ {id:'ngrok',title:'Open the ngrok tunnel',
+  src:`ngrok.set_auth_token(userdata.get('NGROK_AUTHTOKEN'))
+public_url = <span class="k">ngrok.connect(5000)</span>.public_url
+print(public_url)`},
+ {id:'html',title:'Write index.html with the URL inside',
+  src:`html = f"""… value="<span class="k">{public_url}</span>" …"""
+open('/content/index.html','w').write(html)`}
+];
+const cellsEl=$('cells');
+CELLS.forEach((c,i)=>{
+  const d=document.createElement('div'); d.className='cell';
+  d.innerHTML=`<button class="run" id="run-${c.id}" aria-label="Run cell ${i+1}: ${c.title}">▶</button>
+  <div class="cell-body"><p class="cell-title">[${i+1}] ${c.title}</p><pre class="src">${c.src}</pre><pre class="out" id="out-${c.id}"></pre></div>`;
+  cellsEl.appendChild(d);
+  d.querySelector('.run').onclick=()=>runCell(c.id);
+});
+function out(id,txt,cls){const o=$('out-'+id);o.textContent=txt;o.className='out '+(cls||'');const b=$('run-'+id);b.classList.remove('ok','bad');if(cls)b.classList.add(cls);b.textContent=cls==='bad'?'!':'✓';}
+
+async function runCell(id){
+  if(S.busy) return;
+  const b=$('run-'+id); b.textContent='…'; S.busy=true; refresh(); await sleep(450); S.busy=false;
+  failG.innerHTML='';
+  if(id==='save'){
+    S.saved=true; out(id,'Model and Scaler successfully saved to files!','ok');
+    cap('Cell 1','Your model is now a file','<code>pickle</code> turns the trained model and scaler (objects in memory) into files on the Colab disk. Flask will load these files later. Notice the 🧠 station lit up on the map.');
+  }
+  if(id==='pip'){
+    S.installed=true; out(id,'Successfully installed flask-cors pyngrok','ok');
+    cap('Cell 2','Tools installed','<b>Flask</b> builds a small web server, <b>flask-cors</b> adds a permission header browsers need, and <b>pyngrok</b> controls the ngrok tunnel program from Python.');
+  }
+  if(id==='flask'){
+    if(!S.installed){ out(id,"ModuleNotFoundError: No module named 'flask_cors'",'bad'); cap('Cell 3 failed','Flask-CORS isn’t installed yet','Run cell 2 first. Cells depend on the ones above them, so order matters.'); }
+    else if(!S.saved){ out(id,"FileNotFoundError: '/content/model.pkl'",'bad'); cap('Cell 3 failed','There’s no model file to load','Flask loads <code>model.pkl</code> from disk. Run cell 1 to create it.'); }
+    else{
+      S.flask=true; out(id,' * Running on http://127.0.0.1:5000\nFlask background thread started.','ok');
+      cap('Cell 3','Flask is listening, but only inside Colab','Flask now waits for requests at <code>localhost:5000</code>. “localhost” means <i>this machine</i>, the Colab computer in a Google data centre. Your laptop can’t reach it: the firewall blocks connections coming in. Try the <b>localhost</b> button on the right to see.');
+    }
+  }
+  if(id==='ngrok'){
+    if(!S.installed){ out(id,"ModuleNotFoundError: No module named 'pyngrok'",'bad'); cap('Cell 4 failed','pyngrok isn’t installed yet','Run cell 2 first.'); }
+    else{
+      S.busy=true; refresh();
+      cap('Cell 4, part 1','The agent dials out','<code>ngrok.connect(5000)</code> starts the ngrok agent inside Colab. It opens a connection <b>outward</b> to ngrok’s servers. Outgoing connections are allowed, just like <code>pip install</code> can download packages.','agent → ngrok cloud   (outbound: firewall allows it ✓)');
+      here(['agent']); await move({from:'agent',to:'cloud',kind:'ctl',label:'hello, here’s my token'});
+      S.url='https://'+rand()+'.ngrok-free.app'; S.tunnel=true; paintMap();
+      cap('Cell 4, part 2','ngrok gives back a public address',`ngrok creates <code>${S.url}</code> and keeps the connection open. That open connection <b>is the tunnel</b>. Requests for this address will travel back down it, so nothing ever has to come in through the firewall.`,' * Ngrok Tunnel is active! Project Endpoint: '+S.url);
+      here(['cloud']); await move({from:'cloud',to:'agent',kind:'ctl',label:'your URL'});
+      pk.setAttribute('opacity',0); here([]);
+      out(id,S.url,'ok'); S.busy=false;
+    }
+  }
+  if(id==='html'){
+    if(!S.url){ out(id,"NameError: name 'public_url' is not defined",'bad'); cap('Cell 5 failed','There’s no URL to put in the page yet','<code>public_url</code> is created by cell 4. Open the tunnel first.'); }
+    else{
+      S.html=S.url; out(id,'Dashboard written to /content/index.html','ok');
+      cap('Cell 5','The address is baked into the web page',`The f-string swaps <code>{public_url}</code> for <code>${S.url}</code>. Now the page knows where to send requests. Click <b>Open index.html</b> on the right (in real life: download it from Colab’s Files panel and double-click it).`);
+    }
+  }
+  refresh();
+}
+
+$('stopRt').onclick=()=>{
+  if(S.busy) return;
+  Object.assign(S,{saved:false,installed:false,flask:false,tunnel:false,url:null});
+  CELLS.forEach(c=>{const o=$('out-'+c.id);o.textContent='';o.className='out';const b=$('run-'+c.id);b.className='run';b.textContent='▶';});
+  failG.innerHTML='';
+  cap('Runtime disconnected','The Colab machine is gone','Colab disconnects idle notebooks. The tunnel, Flask, and even the <code>.pkl</code> files vanish with it. Your web page is still open on your laptop, though. Try sending a prediction and watch where it fails.');
+  refresh();
+};
+
+// ================= BROWSER =================
+function renderPage(){
+  const p=$('page');
+  if(!S.pageOpen){
+    $('addr').textContent='New tab';
+    p.innerHTML=`<div class="empty">
+      <button class="btn" id="openPage">Open index.html</button>
+      <button class="btn ghost" id="tryLocal">Try http://localhost:5000 instead</button>
+      <span>The page is a plain file on your laptop. Everything clever happens through the URL inside it.</span></div>`;
+    $('openPage').onclick=openPage; $('tryLocal').onclick=tryLocal;
+    return;
+  }
+  $('addr').textContent='file:///Downloads/index.html';
+  p.innerHTML=`<div class="urlrow">Backend URL inside this page: <span>${S.pageUrl}</span></div>
+   <div class="form">
+    <label>Age <input type="number" id="f-age" value="54" min="20" max="90"></label>
+    <label>Sex <select id="f-sex"><option value="1">Male</option><option value="0">Female</option></select></label>
+    <label>Cholesterol <input type="number" id="f-chol" value="246" min="100" max="450"></label>
+    <label>Max heart rate <input type="number" id="f-thalach" value="149" min="70" max="210"></label>
+    <p class="hint">4 of the 13 fields shown; the other 9 are sent with typical values.</p>
+   </div>
+   <div class="actions">
+    <button class="btn" id="doPredict">Run prediction</button>
+    <button class="btn ghost" id="doHist">Age distribution</button>
+    <button class="btn ghost" id="doScatter">Age vs cholesterol</button>
+    <button class="btn ghost" id="reopen" title="Reload the newest index.html">Reopen latest index.html</button>
+   </div>
+   <div class="result" id="result">Result will appear here.</div>
+   <div id="chartBox"></div>`;
+  $('doPredict').onclick=()=>predict();
+  $('doHist').onclick=()=>chart('histogram');
+  $('doScatter').onclick=()=>chart('scatter');
+  $('reopen').onclick=openPage;
+}
+function openPage(){
+  if(S.busy) return;
+  if(!S.html){ cap('Not yet','There’s no index.html to open','Run cell 5 in Colab first. It writes the page and puts the ngrok address inside it.'); return; }
+  S.pageOpen=true; S.pageUrl=S.html; renderPage(); refresh();
+  cap('Page open','Your dashboard is running in the browser',`It’s just HTML and JavaScript on your laptop. Change the age or cholesterol, then press <b>Run prediction</b>. Use <b>Step by step</b> to move one hop at a time, or <b>Auto play</b> to watch it flow.`);
+}
+async function tryLocal(){
+  if(S.busy) return;
+  await runHops([
+    {moves:[{from:'browser',to:'internet',kind:'err',label:'localhost:5000?'}],title:'“localhost” means your own laptop',text:'Your browser looks for port 5000 on <b>your laptop</b>. Flask isn’t running there; it’s running on the Colab machine.'},
+    {moves:[{from:'internet',to:'wall',kind:'err',label:'no way in'}],fail:'wall',title:'And Colab can’t be reached from outside',text:'Even with the right address, the Colab machine has no public address and its firewall blocks connections that start outside. That’s the problem ngrok solves.',data:'This site can’t be reached\nERR_CONNECTION_REFUSED'}
+  ]);
+}
+
+const host=()=>S.pageUrl.replace('https://','');
+const back=(kind,label)=>[{from:'cloud',to:'internet',kind,label},{from:'internet',to:'browser',kind,label}];
+function liveCheck(hops){
+  const tunnelOk=S.tunnel && S.url===S.pageUrl;
+  if(!tunnelOk){
+    const reason=!S.tunnel?'There’s no open tunnel. The Colab runtime is disconnected or cell 4 hasn’t run, so ngrok has nowhere to send the request.'
+      :`This page points to an old address. Running cell 4 again gave a new URL (<code>${S.url}</code>). Run cell 5, then press <b>Reopen latest index.html</b>.`;
+    hops.push({at:['cloud'],fail:'cloud',title:'Dead end at ngrok',text:reason,data:`ERR_NGROK_3200  The endpoint ${host()} is offline.`});
+    hops.push({moves:back('err','offline'),title:'The error comes back',text:'The page gets an HTML error page instead of JSON, so it shows a connection error. Fix the Colab side, then try again.',after:()=>showFail('Connection Error: Check Ngrok URL configuration')});
+    return false;
+  }
+  if(S.breaks.nowarn){
+    hops.push({at:['cloud'],fail:'browser',title:'ngrok sends its warning page instead',text:'On the free plan, ngrok shows a “You are about to visit…” page to browsers, unless the request carries the <code>ngrok-skip-browser-warning</code> header. The request never reaches Colab.',data:'<!DOCTYPE html> … You are about to visit '+host()+' …'});
+    hops.push({moves:back('err','HTML page'),fail:'browser',title:'JavaScript expected JSON and got HTML',text:'<code>response.json()</code> fails on the first <code>&lt;</code>. Fix: add the header to every <code>fetch()</code> in your JavaScript.',data:"SyntaxError: Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON",after:()=>showFail('SyntaxError: response is not valid JSON')});
+    return false;
+  }
+  hops.push({moves:[{from:'cloud',to:'agent',kind:'tun',label:'🔒 tunnel'}],title:'Down the tunnel, through the firewall',text:'ngrok pushes the request down the connection the agent opened earlier from inside Colab. The firewall lets it in because it travels on a connection Colab itself started.'});
+  if(!S.flask){
+    hops.push({moves:[{from:'agent',to:'flask',kind:'err',label:'knock knock'}],fail:'flask',title:'Nobody is listening on port 5000',text:'The tunnel works, but Flask isn’t running: cell 3 hasn’t run, or it crashed. The agent can’t hand the request to anyone.',data:'502 Bad Gateway  ERR_NGROK_8012'});
+    hops.push({moves:[{from:'flask',to:'agent',kind:'err',label:'502'},{from:'agent',to:'cloud',kind:'err',label:'502'},...back('err','502')],title:'The error travels home',text:'Run cell 3 so Flask is listening, then send again.',after:()=>showFail('502 Bad Gateway: Flask is not running')});
+    return false;
+  }
+  return true;
+}
+function showFail(t){const r=$('result');if(r){r.className='result fail';r.textContent=t;}}
+
+function predict(){
+  if(S.busy) return;
+  const v={age:+$('f-age').value,sex:+$('f-sex').value,chol:+$('f-chol').value,thalach:+$('f-thalach').value};
+  const key=S.breaks.badkey?'cholesterol':'chol';
+  const json=`{"age":"${v.age}","sex":"${v.sex}","cp":"0","trestbps":"131","${key}":"${v.chol}",\n "fbs":"0","restecg":"0","thalach":"${v.thalach}","exang":"0","oldpeak":"1.0","slope":"2","ca":"0","thal":"2"}`;
+  const z=(v.age-54)*0.05+(v.chol-246)*0.008-(v.thalach-149)*0.035+v.sex*0.5;
+  const prob=1/(1+Math.exp(-z)), cls=prob>=.5?1:0, p=prob.toFixed(2);
+  const hops=[
+    {at:['browser'],title:'Your click becomes JSON',text:'JavaScript reads every form field and packs them into JSON text. Each value is a string, because <code>.value</code> always returns text. Flask will convert them with <code>float()</code>.',data:json},
+    {moves:[{from:'browser',to:'internet',kind:'req',label:'🔒 POST /predict'}],title:'Off it goes, encrypted',text:'The browser sends an HTTP <b>POST</b> request to the ngrok address. HTTPS scrambles it, so routers on the way can see where it’s going but not what’s inside.',data:`POST /predict HTTP/1.1\nHost: ${host()}\nContent-Type: application/json\nngrok-skip-browser-warning: ${S.breaks.nowarn?'(missing!)':'true'}`},
+    {moves:[{from:'internet',to:'cloud',kind:'req',label:'🔒 POST /predict'}],title:'It arrives at ngrok, not at Colab',text:'The address belongs to ngrok’s servers. ngrok reads the <code>Host</code> line, looks up which tunnel owns that name, and finds yours.'}
+  ];
+  if(liveCheck(hops)){
+    hops.push({moves:[{from:'agent',to:'flask',kind:'req',label:'POST /predict'}],title:'Delivered to localhost:5000',text:'Inside Colab the agent hands the request to Flask as ordinary local traffic. Flask matches the path <code>/predict</code> to your <code>predict()</code> function.',data:"@app.route('/predict', methods=['POST'])"});
+    if(S.breaks.badkey){
+      hops.push({at:['flask'],fail:'flask',title:'Flask can’t find a key',text:'Flask reads <code>data[\'chol\']</code>, but the JSON calls it <code>cholesterol</code>. Python raises <code>KeyError</code> and your <code>except</code> returns a 400 error.',data:`{"error": "'chol'"}`});
+      hops.push({moves:[{from:'flask',to:'agent',kind:'err',label:'400'},{from:'agent',to:'cloud',kind:'err',label:'400'},...back('err','400')],title:'The error travels home',text:'Fix: use one name in three places: the HTML <code>id</code>, the JSON key, and <code>data[\'…\']</code> in Flask.',after:()=>showFail(`Error: 'chol'`)});
+    } else {
+      hops.push({at:['flask'],title:'JSON becomes 13 numbers',text:'Flask turns the JSON into a Python dict and builds a list in the <b>same column order</b> the model was trained on. Mix up the order and the model reads the wrong columns without any error.',data:`features = [${v.age}.0, ${v.sex}.0, 0.0, 131.0, ${v.chol}.0, 0.0, 0.0, ${v.thalach}.0, 0.0, 1.0, 2.0, 0.0, 2.0]`});
+      hops.push({moves:[{from:'flask',to:'model',kind:'req',label:'13 numbers'}],title:'Scale, then predict',text:'The scaler rescales each number using the mean and spread it learned in training. Then Gaussian Naive Bayes picks a class and gives the probability of class 1 (disease).',data:'scaled = scaler.transform([features])\nprediction = model.predict(scaled)\nprobability = model.predict_proba(scaled)[0][1]'});
+      hops.push({moves:[{from:'model',to:'flask',kind:'res',label:`${cls}, ${p}`}],title:'The answer, packed as JSON',text:'<code>jsonify</code> turns the Python dict into JSON text inside an HTTP response with status 200 OK.',data:`HTTP/1.1 200 OK\nAccess-Control-Allow-Origin: ${S.breaks.nocors?'(missing!)':'*'}\n\n{"prediction": ${cls}, "probability": ${p}}`});
+      hops.push({moves:[{from:'flask',to:'agent',kind:'res',label:'200 OK'},{from:'agent',to:'cloud',kind:'res',label:'🔒 tunnel'}],title:'Back up the tunnel',text:'The response goes back the way it came: to the agent, then up the same open tunnel to ngrok’s servers.'});
+      hops.push({moves:back('res','🔒 200 OK'),title:'Across the internet to your browser',text:'ngrok sends the response over HTTPS to the browser that asked.'});
+      if(S.breaks.nocors){
+        hops.push({at:['browser'],fail:'browser',title:'The browser refuses to hand it over',text:'The reply has no <code>Access-Control-Allow-Origin</code> header, so the browser blocks your JavaScript from reading it. The server did its job; the <b>browser</b> blocked it. (In reality the browser stops at its first permission check, before the real POST is sent.) Fix: put <code>CORS(app)</code> back.',data:"Access to fetch … has been blocked by CORS policy:\nNo 'Access-Control-Allow-Origin' header is present",after:()=>showFail('Blocked by CORS policy (see browser console)')});
+      } else {
+        hops.push({at:['browser'],title:'The page shows the result',text:'<code>response.json()</code> turns the text back into a JavaScript object and the page writes the result. That’s a full round trip: browser → Colab → browser, usually under a second.',after:()=>{const r=$('result');r.className='result '+(cls?'pos':'neg');r.innerHTML=(cls?'Positive (heart disease risk)':'Negative (no risk detected)')+`<br><small>P(disease) = ${(prob*100).toFixed(1)}% · simulated model</small>`;S.predicted=true;}});
+      }
+    }
+  }
+  if(S.breaks.nocors||S.breaks.nowarn||S.breaks.badkey||!S.tunnel||!S.flask||S.url!==S.pageUrl) S.broke=true;
+  runHops(hops);
+}
+
+function chartSVG(type){
+  let s='<svg viewBox="0 0 300 150" width="100%" class="chart" role="img" aria-label="'+(type==='histogram'?'Age distribution histogram':'Age versus cholesterol scatter plot')+'">';
+  if(type==='histogram'){const h=[2,3,5,4,7,9,8,12,14,11,16,19,15,13,17,12,9,7,5,3,2];h.forEach((v,i)=>{s+=`<rect x="${20+i*12.5}" y="${125-v*5.5}" width="11" height="${v*5.5}" fill="#E5463E"/>`;});}
+  else{let seed=7;const r=()=>{seed=(seed*9301+49297)%233280;return seed/233280;};for(let i=0;i<90;i++){const a=r(),x=25+a*260,y=110-a*40-r()*55;s+=`<text x="${x}" y="${y}" font-size="11" fill="#2E9B3E" text-anchor="middle">*</text>`;}}
+  return s+'<line x1="15" y1="125" x2="292" y2="125" stroke="#333"/><text x="150" y="143" font-size="10" text-anchor="middle" fill="#333" font-family="sans-serif">Age</text></svg>';
+}
+function chart(type){
+  if(S.busy) return;
+  const hops=[
+    {at:['browser'],title:'A button asks for a chart',text:'This is a <b>GET</b> request: it asks for something instead of sending form data. The chart type rides in the URL after the <code>?</code>.',data:`GET /get_eda?type=${type} HTTP/1.1\nHost: ${host()}`},
+    {moves:[{from:'browser',to:'internet',kind:'req',label:'🔒 GET /get_eda'},{from:'internet',to:'cloud',kind:'req',label:'🔒 GET /get_eda'}],title:'Same road as before',text:'Across the internet to ngrok’s servers, which find your tunnel by the address.'}
+  ];
+  if(liveCheck(hops)){
+    hops.push({moves:[{from:'agent',to:'flask',kind:'req',label:'GET /get_eda'}],title:'Flask picks the chart',text:'Flask reads <code>request.args.get(\'type\')</code> and runs the matching matplotlib code, the same code as in your EDA cells.',data:`eda_type = '${type}'`});
+    hops.push({at:['flask'],title:'Drawn into memory, not a file',text:'Instead of <code>plt.show()</code>, the figure is saved into a <code>BytesIO</code> buffer in RAM. That gives raw PNG bytes.',data:'89 50 4E 47 0D 0A 1A 0A 00 00 00 0D …   (PNG bytes)'});
+    hops.push({at:['flask'],title:'base64 turns bytes into text',text:'JSON can only carry text. base64 rewrites every 3 bytes as 4 safe characters (A–Z, a–z, 0–9, +, /), so the picture can ride inside JSON. It grows by about a third.',data:'{"image": "iVBORw0KGgoAAAANSUhEUgAA…  (~40,000 characters)"}'});
+    hops.push({moves:[{from:'flask',to:'agent',kind:'res',label:'200 OK + image'},{from:'agent',to:'cloud',kind:'res',label:'🔒 tunnel'},...back('res','🔒 image text')],title:'The picture travels home as text',text:'To every hop on the way it’s just a long string.'});
+    hops.push({at:['browser'],title:'Text becomes a picture again',text:'The page sets <code>img.src = "data:image/png;base64," + data.image</code>. The browser decodes the text and draws the PNG. No image file ever exists on your laptop.',after:()=>{$('chartBox').innerHTML=chartSVG(type);S.charted=true;}});
+  }
+  runHops(hops);
+}
+
+document.querySelectorAll('[data-break]').forEach(c=>c.onchange=()=>{S.breaks[c.dataset.break]=c.checked; if(c.checked){S.broke=true;} refresh();
+  if(c.checked) cap('What if…','Now send a request again','Press <b>Run prediction</b> (or a chart button) and watch where the packet gets stuck.');});
+
+// ================= REFRESH / NUDGE =================
+function refresh(){
+  paintMap();
+  $('rtBadge').textContent=S.installed||S.saved||S.flask?'runtime connected':'fresh runtime';
+  $('rtBadge').className='badge '+(S.tunnel?'live':'');
+  if(S.tunnel) $('rtBadge').textContent='tunnel live';
+  document.querySelectorAll('.run,.btn,.small-btn').forEach(b=>b.disabled=S.busy);
+  document.querySelectorAll('.nudge').forEach(n=>n.classList.remove('nudge'));
+  let target=null;
+  if(!S.busy){
+    if(!S.saved) target=$('run-save'); else if(!S.installed) target=$('run-pip'); else if(!S.flask) target=$('run-flask');
+    else if(!S.tunnel) target=$('run-ngrok'); else if(S.html!==S.url) target=$('run-html');
+    else if(!S.pageOpen) target=$('openPage'); else if(S.pageUrl!==S.url) target=$('reopen');
+    else if(!S.predicted) target=$('doPredict'); else if(!S.charted) target=$('doHist');
+  }
+  if(target) target.classList.add('nudge');
+  const step=!S.html?1:!S.pageOpen?2:!S.predicted?3:!S.charted?4:5;
+  document.querySelectorAll('#progress li').forEach(li=>{const n=+li.dataset.p;li.className=n<step||(n===5&&S.broke)?'done':(n===step?'now':'');});
+}
+renderPage(); refresh();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Eight Ways to Read Four Boxes — Classification Metrics (26ECP-102)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Zilla+Slab:wght@500;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#2A1C06; --ink-soft:#5C4A2E;
+  --paper:#EDEEE9; --card:#F7F7F4; --line:#CFCFC6;
+  --teal:#1F6F78; --teal-pale:#B9DEE3; --teal-wash:#DCEDEE;
+  --hit:#1F6F78; --miss:#B23A1E; --refuse:#D99414;
+  --gold:#C08A18; --dim:#A3A399;
+  --rail:76px;
+}
+*{box-sizing:border-box} html,body{margin:0}
+body{background:var(--paper); color:var(--ink); font-family:"IBM Plex Sans",system-ui,sans-serif;
+  font-size:15px; line-height:1.55; padding-left:var(--rail)}
+.rail{position:fixed; inset:0 auto 0 0; width:var(--rail); background:var(--ink); z-index:5;
+  display:flex; align-items:flex-end; justify-content:center; padding-bottom:26px}
+.rail span{writing-mode:vertical-rl; transform:rotate(180deg); color:var(--teal-pale);
+  font-size:11px; letter-spacing:.18em; font-family:"IBM Plex Mono",monospace}
+.wrap{max-width:1240px; padding:34px 30px 70px}
+h1{font-family:"Zilla Slab",Georgia,serif; font-weight:700; font-size:clamp(28px,4vw,42px);
+  line-height:1.05; margin:0 0 12px; letter-spacing:-.015em; max-width:26ch}
+.lede{max-width:74ch; color:var(--ink-soft); margin:0}
+h2{font-family:"Zilla Slab",serif; font-weight:700; font-size:19px; margin:0 0 8px}
+h3{font-family:"Zilla Slab",serif; font-weight:700; font-size:15px; margin:0 0 6px}
+.sec{margin-top:32px; border-top:2px solid var(--ink); padding-top:16px}
+.sub{font-size:13.5px; color:var(--ink-soft); margin:0 0 16px; max-width:80ch}
+.setup{margin:22px 0 0; padding:14px 18px; background:var(--card); border:1px solid var(--line); max-width:80ch}
+.setup p{margin:0; font-size:13.5px; color:var(--ink-soft)} .setup b{color:var(--ink)}
+
+.chips{display:flex; flex-wrap:wrap; gap:7px; margin-bottom:16px}
+.chip{font:inherit; font-size:12.5px; font-weight:500; background:var(--card); color:var(--ink);
+  border:1px solid var(--line); padding:6px 11px; cursor:pointer}
+.chip:hover{border-color:var(--ink)}
+.chip[aria-pressed="true"]{background:var(--ink); color:var(--paper); border-color:var(--ink)}
+.chip:focus-visible{outline:2px solid var(--teal); outline-offset:2px}
+.chip small{font-family:"IBM Plex Mono",monospace; opacity:.7; margin-left:5px}
+
+/* ---------- confusion matrix ---------- */
+.mainrow{display:grid; grid-template-columns:minmax(340px,.85fr) minmax(0,1fr); gap:26px; align-items:start}
+@media (max-width:1020px){ .mainrow{grid-template-columns:1fr} }
+.cmwrap{background:var(--card); border:1px solid var(--line); padding:16px 18px 14px}
+.cmtitle{font-family:"Zilla Slab",serif; font-weight:700; font-size:15px; margin:0 0 3px}
+.cmsub{font-size:12px; color:var(--ink-soft); margin:0 0 14px; font-family:"IBM Plex Mono",monospace}
+.cm{display:grid; grid-template-columns:104px 1fr 1fr 62px; gap:4px; align-items:stretch}
+.cm .lab{display:flex; align-items:center; font-size:11.5px; color:var(--ink-soft); line-height:1.25}
+.cm .lab.top{justify-content:center; text-align:center; font-weight:600; color:var(--ink); padding-bottom:2px}
+.cm .lab.side{font-weight:600; color:var(--ink); font-size:12.5px}
+.cm .lab.tot{justify-content:flex-end; font-family:"IBM Plex Mono",monospace; font-size:12px}
+.cell{background:#fff; border:1px solid var(--line); padding:11px 10px; text-align:center;
+  opacity:.34; transition:opacity .15s ease, border-color .15s ease}
+.cell.on{opacity:1; border-color:var(--ink); border-width:2px}
+.cell .n{display:block; font-family:"IBM Plex Mono",monospace; font-weight:600; font-size:26px; line-height:1.1}
+.cell .w{display:block; font-size:11px; margin-top:3px; line-height:1.3}
+.cell.tp .n{color:var(--hit)} .cell.tn .n{color:var(--hit)}
+.cell.fn .n{color:var(--miss)} .cell.fp .n{color:var(--refuse)}
+.cmuse{margin:14px 0 0; font-size:13px; padding:10px 12px; background:#fff; border-left:3px solid var(--teal)}
+.cmuse b{color:var(--teal)}
+
+/* ---------- metric list ---------- */
+.mlist{display:flex; flex-direction:column; gap:7px}
+.mrow{display:grid; grid-template-columns:186px 66px minmax(0,1fr); gap:13px; align-items:center;
+  background:var(--card); border:1px solid var(--line); border-left:6px solid var(--line);
+  padding:9px 13px; cursor:pointer; text-align:left; font:inherit; color:inherit; width:100%}
+.mrow:hover{border-color:var(--ink-soft)}
+.mrow.sel{border-color:var(--ink); border-width:1px 1px 1px 6px}
+.mrow:focus-visible{outline:2px solid var(--teal); outline-offset:2px}
+.mrow .mn{font-family:"Zilla Slab",serif; font-weight:700; font-size:14.5px; line-height:1.15}
+.mrow .mn small{display:block; font-family:"IBM Plex Sans",sans-serif; font-weight:400;
+  font-size:10.5px; color:var(--ink-soft); line-height:1.3; margin-top:2px}
+.mrow .mv{font-family:"IBM Plex Mono",monospace; font-weight:600; font-size:16px;
+  text-align:right; font-variant-numeric:tabular-nums}
+.mbar{position:relative; height:22px; background:#E4E4DC; border:1px solid rgba(0,0,0,.07)}
+.mbar i{display:block; height:100%}
+.mbar .bst{position:absolute; top:-3px; bottom:-3px; width:2px; background:var(--ink); opacity:.5}
+.mbar .bl{position:absolute; top:50%; transform:translateY(-50%); right:5px;
+  font-family:"IBM Plex Mono",monospace; font-size:9.5px; color:var(--ink-soft)}
+
+/* ---------- explain ---------- */
+.grid2{display:grid; grid-template-columns:minmax(0,1.05fr) minmax(300px,.95fr); gap:22px; margin-top:20px}
+@media (max-width:1020px){ .grid2{grid-template-columns:1fr} }
+.panel{background:var(--card); border:1px solid var(--line); padding:16px 18px}
+.panel p{font-size:14px; margin:0 0 11px}
+.calc{font-family:"IBM Plex Mono",monospace; font-size:13px; background:#fff; border:1px solid var(--line);
+  padding:10px 12px; margin:0 0 12px; overflow-x:auto; white-space:nowrap}
+.blind{font-size:13.5px; background:#fff; border-left:3px solid var(--miss); padding:10px 12px; margin:0 0 11px}
+.blind b{color:var(--miss)}
+
+/* ---------- per-metric bars across models ---------- */
+.bars{display:flex; flex-direction:column; gap:5px}
+.brow{display:grid; grid-template-columns:148px minmax(0,1fr) 62px; gap:10px; align-items:center; font-size:13px}
+.brow .bn{white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.btrack{height:17px; background:#E6E7E0; border:1px solid var(--line)}
+.btrack i{display:block; height:100%; background:var(--dim)}
+.brow.best .btrack i{background:var(--teal)} .brow.best .bn{font-weight:600}
+.brow.me .btrack i{background:var(--ink)} .brow.me .bn{font-weight:600}
+.brow .bv{font-family:"IBM Plex Mono",monospace; text-align:right; font-variant-numeric:tabular-nums}
+.spreadnote{font-size:13.5px; color:var(--ink-soft); margin:13px 0 0; max-width:80ch}
+.spreadnote b{color:var(--ink)}
+
+/* ---------- dial ---------- */
+.dial{background:var(--card); border:1px solid var(--line); padding:16px 18px 12px}
+.qv{font-family:"IBM Plex Mono",monospace; font-size:12.5px; color:var(--ink-soft); margin:0 0 13px}
+.qv b{color:var(--ink)}
+.strip{position:relative; height:38px; border:1px solid var(--line); background:#fff; cursor:ew-resize; touch-action:none}
+.strip:focus-visible{outline:2px solid var(--teal); outline-offset:3px}
+.band{position:absolute; top:0; bottom:0; display:flex; align-items:center; justify-content:center; overflow:hidden}
+.band span{font-size:10.5px; font-weight:600; color:#fff; white-space:nowrap; padding:0 5px; text-shadow:0 1px 2px rgba(0,0,0,.35)}
+.mark{position:absolute; top:-6px; bottom:-6px; width:3px; background:var(--ink); transform:translateX(-1.5px); pointer-events:none}
+.axis{display:flex; justify-content:space-between; font-family:"IBM Plex Mono",monospace; font-size:10px; color:var(--ink-soft); margin-top:3px}
+.dctrl{display:flex; flex-wrap:wrap; gap:7px; margin-top:12px; align-items:center}
+.money{margin-top:14px; background:var(--ink); color:var(--paper); padding:14px 18px; border-left:4px solid var(--teal-pale)}
+.money p{margin:0 0 7px; font-size:14.5px; max-width:88ch} .money p:last-child{margin:0}
+.money em{color:var(--teal-pale); font-style:normal; font-weight:600}
+
+/* ---------- table ---------- */
+.tblwrap{overflow-x:auto; border:1px solid var(--line); background:var(--card)}
+table{border-collapse:collapse; width:100%; min-width:900px; font-size:13px}
+th,td{padding:8px 10px; text-align:right; border-bottom:1px solid var(--line); white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+thead th{background:#E6E7E0; border-bottom:2px solid var(--ink); font-family:"Zilla Slab",serif;
+  font-weight:700; font-size:12.5px; cursor:pointer}
+thead th:hover{background:#DDDED6}
+td{font-family:"IBM Plex Mono",monospace; font-variant-numeric:tabular-nums}
+td:first-child{font-family:"IBM Plex Sans",sans-serif; font-weight:500}
+tbody tr{cursor:pointer} tbody tr:hover td{background:#EFEFE9}
+tbody tr.sel td{background:#fff; box-shadow:inset 0 2px 0 var(--ink), inset 0 -2px 0 var(--ink)}
+.colsel{background:var(--teal-wash) !important} thead th.colsel{background:#BFDFE1 !important}
+.agree{outline:2px solid var(--teal); outline-offset:-2px}
+.wc{font-weight:600; color:var(--teal)}
+.tnote{font-size:12.5px; color:var(--ink-soft); margin:9px 0 0; max-width:84ch}
+footer{margin-top:40px; padding-top:14px; border-top:1px solid var(--line); font-size:12.5px; color:var(--ink-soft); max-width:84ch}
+</style>
+</head>
+<body>
+<div class="rail"><span>26ECP-102 &middot; AI APPLICATIONS LAB</span></div>
+<div class="wrap">
+
+<h1>Eight ways to read the same four boxes</h1>
+<p class="lede">Accuracy, AUC, Recall, Precision, F1, Kappa and MCC are not seven separate measurements. Six of them are arithmetic on one 2&times;2 table, and they disagree only because each one reads a different part of it. Pick a metric below and the boxes it actually uses light up. The seven models exist so you have seven different tables to read.</p>
+
+<div class="setup">
+  <p><b>The case.</b> A bank decides who gets a loan. The test set is <b>1000 real applicants</b>: <b>200 went on to default</b>, <b>800 repaid</b>. Every model saw those same 1000 people. The only thing that differs between models is how the four boxes fill up.</p>
+</div>
+
+<section class="sec">
+  <h2>Choose whose confusion matrix to read</h2>
+  <div class="chips" id="mchips"></div>
+
+  <div class="mainrow">
+    <div class="cmwrap">
+      <p class="cmtitle" id="cmName"></p>
+      <p class="cmsub" id="cmSub"></p>
+      <div class="cm" id="cm"></div>
+      <p class="cmuse" id="cmUse"></p>
+    </div>
+
+    <div>
+      <p class="sub" style="margin-bottom:10px">Click a metric. The boxes it reads light up on the left, and the strip shows where this model sits among all seven on that metric.</p>
+      <div class="mlist" id="mlist"></div>
+    </div>
+  </div>
+</section>
+
+<div class="grid2">
+  <section class="panel">
+    <h2 id="exHead"></h2>
+    <div id="ex"></div>
+  </section>
+  <section class="panel">
+    <h2 id="barHead"></h2>
+    <div class="bars" id="bars"></div>
+    <p class="spreadnote" id="spreadNote"></p>
+  </section>
+</div>
+
+<section class="sec">
+  <h2>Which of these metrics should decide anything</h2>
+  <p class="sub">A metric on its own cannot tell you it is the right metric. Set the one business number that can. Each coloured band is the price range over which one model is genuinely the cheapest &mdash; and the metric that agrees with the money is the metric worth sorting on.</p>
+  <div class="dial">
+    <p class="qv" id="qv"></p>
+    <div class="strip" id="strip" tabindex="0" role="slider" aria-label="Cost of a missed defaulter relative to a refused customer"></div>
+    <div class="axis"><span>0.1&times;</span><span>1&times; (equal)</span><span>10&times;</span><span>50&times;</span></div>
+    <div class="dctrl">
+      <button class="chip" type="button" data-r="0.2">Refusing costs 5&times; more</button>
+      <button class="chip" type="button" data-r="1">Both cost the same</button>
+      <button class="chip" type="button" data-r="3">Missing costs 3&times; more</button>
+      <button class="chip" type="button" data-r="20">Missing costs 20&times; more</button>
+    </div>
+  </div>
+  <div class="money">
+    <p id="mo1"></p>
+    <p id="mo2"></p>
+  </div>
+</section>
+
+<section class="sec">
+  <h2>All seven models, all eight metrics</h2>
+  <p class="sub">The selected metric&rsquo;s column is tinted. Columns outlined in teal are the ones whose winner matches the cheapest model at the current price. Click a heading or a row to move the selection.</p>
+  <div class="tblwrap"><table><thead><tr id="th"></tr></thead><tbody id="tb"></tbody></table></div>
+  <p class="tnote" id="tnote"></p>
+</section>
+
+<footer>Accuracy, Recall, Precision, F1, Kappa and MCC are computed in this page from each model&rsquo;s confusion matrix, so nothing in the table can contradict the four boxes above. AUC and TT cannot be derived from those boxes and are supplied separately, as they arrive from a PyCaret <code>compare_models()</code> run. Cost in &#8377; lakh works out to (defaulters missed &times; ratio) + (customers refused), since a refusal is priced at &#8377;1,00,000 throughout.</footer>
+</div>
+
+<script>
+(function(){
+"use strict";
+var POS=200, NEG=800, TOTAL=1000, RMIN=0.1, RMAX=50;
+
+var RAW=[
+ {key:'gb', name:'Gradient Boosting',   TP:152, FN:48,  FP:38,  TN:762, auc:0.951, tt:5.80},
+ {key:'rf', name:'Random Forest',       TP:140, FN:60,  FP:25,  TN:775, auc:0.930, tt:2.40},
+ {key:'knn',name:'K Neighbors',         TP:134, FN:66,  FP:55,  TN:745, auc:0.881, tt:18.70},
+ {key:'lr', name:'Logistic Regression', TP:130, FN:70,  FP:60,  TN:740, auc:0.898, tt:0.30},
+ {key:'dt', name:'Decision Tree',       TP:138, FN:62,  FP:95,  TN:705, auc:0.762, tt:0.09},
+ {key:'nb', name:'Naive Bayes',         TP:186, FN:14,  FP:290, TN:510, auc:0.885, tt:0.06},
+ {key:'dum',name:'Always Approve',      TP:0,   FN:200, FP:0,   TN:800, auc:0.500, tt:0.01}
+];
+var MODELS=RAW.map(function(m){
+  var acc=(m.TP+m.TN)/TOTAL;
+  var rec=m.TP/(m.TP+m.FN);
+  var pre=(m.TP+m.FP)?m.TP/(m.TP+m.FP):0;
+  var f1=(pre+rec)?2*pre*rec/(pre+rec):0;
+  var pe=((m.TP+m.FP)/TOTAL)*((m.TP+m.FN)/TOTAL)+((m.FN+m.TN)/TOTAL)*((m.FP+m.TN)/TOTAL);
+  var kap=pe<1?(acc-pe)/(1-pe):0;
+  var den=Math.sqrt((m.TP+m.FP)*(m.TP+m.FN)*(m.TN+m.FP)*(m.TN+m.FN));
+  var mcc=den?(m.TP*m.TN-m.FP*m.FN)/den:0;
+  return {key:m.key,name:m.name,TP:m.TP,FN:m.FN,FP:m.FP,TN:m.TN,pe:pe,
+          acc:acc,auc:m.auc,rec:rec,pre:pre,f1:f1,kap:kap,mcc:mcc,tt:m.tt,flag:m.TP+m.FP};
+});
+function M(k){ return MODELS.filter(function(x){return x.key===k;})[0]; }
+var BANDCOL={gb:'#1F6F78',rf:'#3E7D3A',nb:'#B23A1E',lr:'#7A5CA8',dt:'#8A6A2E',knn:'#2E6E8A',dum:'#7A7A70'};
+
+/* ---------- the metrics: which boxes each one reads ---------- */
+var METS=[
+ {k:'acc', h:'Accuracy', d:4, cells:['TP','TN'], max:1,
+  uses:'the two <b>correct</b> boxes, divided by all 1000',
+  asks:'Out of 1000 applicants, how many did the model get right? It adds the defaulters it caught to the good customers it cleared.',
+  blind:'It cannot tell the two mistakes apart. A defaulter given money and a good customer turned away are the same event to Accuracy, even when one costs twenty times the other.',
+  calc:function(m){ return '('+m.TP+' caught + '+m.TN+' cleared) / 1000 = '+m.acc.toFixed(4); },
+  spread:'The seven models span only 0.6960 to 0.9150, and <b>Always Approve sits at 0.8000 without reading a single file</b> \u2014 because 800 of these 1000 repaid. On an imbalanced problem Accuracy compresses everything into a narrow band above the do-nothing score, so it separates models badly.'},
+
+ {k:'rec', h:'Recall', d:4, cells:['TP','FN'], max:1,
+  uses:'the <b>top row only</b> \u2014 the 200 who defaulted',
+  asks:'Of the 200 people who actually defaulted, what fraction did the model flag? Also called sensitivity or the true positive rate.',
+  blind:'The 800 who repaid are invisible to it. A model can push Recall as high as it likes by flagging more and more people \u2014 Naive Bayes reaches 0.9300 by raising 476 flags.',
+  calc:function(m){ return m.TP+' caught / 200 real defaulters = '+m.rec.toFixed(4); },
+  spread:'From 0.0000 to 0.9300 \u2014 <b>the widest spread of any column here</b>. Recall separates these models more sharply than anything else, because it responds directly to how freely a model raises a flag. That sensitivity is exactly why it is the right column when a missed default is the expensive mistake.'},
+
+ {k:'pre', h:'Precision', d:4, cells:['TP','FP'], max:1,
+  uses:'the <b>right-hand column only</b> \u2014 everyone flagged',
+  asks:'Of everyone the model marked risky, what fraction really defaulted? This is how much trust a branch manager can place in a red flag.',
+  blind:'The defaulters the model never flagged do not appear. A model can hold Precision high by flagging only the two or three most obvious cases and waving everyone else through.',
+  calc:function(m){ return m.flag? m.TP+' right flags / '+m.flag+' flags raised = '+m.pre.toFixed(4)
+                                 : 'no flags raised at all, so Precision is undefined and reported as 0.0000'; },
+  spread:'0.0000 to 0.8485. Note that <b>Recall and Precision move in opposite directions</b> across these models: Naive Bayes tops Recall and sits near the bottom on Precision. That is not a coincidence in the data \u2014 it is what raising more flags does.'},
+
+ {k:'f1', h:'F1 Score', d:4, cells:['TP','FN','FP'], max:1,
+  uses:'<b>three boxes \u2014 and never the 800 cleared</b>',
+  asks:'One number for a model that has to do both jobs: find defaulters and avoid refusing good customers. It is the harmonic mean of Recall and Precision, so it leans toward whichever is weaker.',
+  blind:'It never looks at the cleared box. Look at the greyed-out cell on the left \u2014 F1 would be identical if the bank had 800 good applicants or 8000. That makes it useful on imbalanced data and useless as a measure of overall correctness.',
+  calc:function(m){ return '2 \u00d7 '+m.TP+' / (2 \u00d7 '+m.TP+' + '+m.FP+' refused + '+m.FN+' missed) = '+m.f1.toFixed(4); },
+  spread:'0.0000 to 0.7795. Naive Bayes has the best Recall in the table and lands at 0.5503 on F1, <b>below all five models with weaker Recall than its own</b>. A plain average of its 0.9300 and 0.3908 would give 0.66; the harmonic mean gives 0.55, because being excellent at one job does not excuse being poor at the other.'},
+
+ {k:'kap', h:'Kappa', d:4, cells:['TP','FN','FP','TN'], max:1,
+  uses:'<b>all four boxes</b>, then subtracts luck',
+  asks:'How much of the accuracy is real skill? Since 800 of 1000 repaid, a clerk who cleared every unread file scores 0.80 for free. Kappa removes that free score and reports what share of the room still left the model captured.',
+  blind:'It gives you no idea of the size of the mistake in rupees, and its scale is unfamiliar \u2014 0.72 is a strong Kappa but people read it as a weak percentage.',
+  calc:function(m){ return '(observed '+m.acc.toFixed(4)+' \u2212 by-luck '+m.pe.toFixed(4)+') / (1 \u2212 '+m.pe.toFixed(4)+') = '+m.kap.toFixed(4); },
+  spread:'0.0000 to 0.7261. <b>This is the column that unmasks Always Approve.</b> Accuracy gave it 0.8000; Kappa gives it exactly nothing, because every point of that 0.80 was available for free.'},
+
+ {k:'mcc', h:'MCC', d:4, cells:['TP','FN','FP','TN'], max:1,
+  uses:'<b>all four boxes</b>, balanced against class sizes',
+  asks:'A correlation between what the model said and what actually happened. Read it from \u22121 to +1: 0.00 means the flags carry no information about who defaults, 1.00 means every flag right and nobody missed, negative means the flags point the wrong way.',
+  blind:'Like Kappa it says nothing in rupees, and a single number covering all four boxes cannot tell you which of the two mistakes dominated.',
+  calc:function(m){ return '('+m.TP+'\u00d7'+m.TN+' \u2212 '+m.FP+'\u00d7'+m.FN+') / \u221a('+m.flag+'\u00d7200\u00d7800\u00d7'+(m.FN+m.TN)+') = '+m.mcc.toFixed(4); },
+  spread:'0.0000 to 0.7265, and its ordering of the models is almost identical to Kappa\u2019s. <b>If you only have room for one number on an imbalanced file, this is the safest one</b> \u2014 it is the hardest to inflate, because a model has to do well in all four boxes at once.'},
+
+ {k:'auc', h:'AUC', d:3, cells:[], max:1,
+  uses:'<b>none of the four boxes</b>',
+  asks:'Behind every model is a risk score for each of the 1000 applicants, before anyone drew a line. AUC asks: pull one defaulter and one repayer at random \u2014 how often is the defaulter ranked riskier? 0.500 is a coin toss, 1.000 is a perfect ordering.',
+  blind:'Every cell on the left is greyed out because AUC does not come from them. It cannot be computed from a confusion matrix at all, which also means it says nothing about the decisions the model actually made at the cut-off it was given.',
+  calc:function(m){ return 'AUC = '+m.auc.toFixed(3)+'  \u2014  from the ranked risk scores, not from '+m.TP+'/'+m.FN+'/'+m.FP+'/'+m.TN; },
+  spread:'0.500 to 0.951. Compare Decision Tree and Naive Bayes: <b>Decision Tree has far better Accuracy (0.8430 vs 0.6960) and far worse AUC (0.7620 vs 0.8850)</b>. Labelling well and ranking well are different skills, and moving the cut-off changes every other column in this table but never this one.'},
+
+ {k:'tt', h:'TT (Sec)', d:2, cells:[], max:20, low:true,
+  uses:'<b>none of the four boxes</b>',
+  asks:'Seconds to train on this data. It is a cost, not a quality \u2014 it says nothing about any applicant.',
+  blind:'It has no opinion about correctness whatsoever. Always Approve is the fastest thing here at 0.01 seconds and hands loans to all 200 defaulters.',
+  calc:function(m){ return 'Training time = '+m.tt.toFixed(2)+' seconds. No applicants involved.'; },
+  spread:'0.01 to 18.70 seconds \u2014 a range of <b>nearly 2000 times</b>, far wider than any quality column. Treat it as a gate rather than a score: rule out whatever misses your deadline, then read the quality columns among what survives.'}
+];
+function MET(k){ return METS.filter(function(x){return x.k===k;})[0]; }
+
+/* the full form of each name, and the colour it wears throughout */
+var FULL={
+ acc:'Proportion of all predictions that were correct',
+ rec:'Sensitivity, or True Positive Rate',
+ pre:'Positive Predictive Value',
+ f1:'Harmonic mean of Precision and Recall',
+ kap:'Cohen\u2019s Kappa',
+ mcc:'Matthews Correlation Coefficient',
+ auc:'Area Under the ROC Curve',
+ tt:'Training Time, in seconds'
+};
+var MCOL={acc:'#2E6E8A', rec:'#B23A1E', pre:'#D99414', f1:'#1F6F78',
+          kap:'#3E7D3A', mcc:'#8A3A6B', auc:'#7A5CA8', tt:'#7A7A70'};
+var MTINT={acc:'#E4EEF3', rec:'#F6E5E1', pre:'#FBF0DC', f1:'#DCEDEE',
+           kap:'#E4EFE2', mcc:'#F3E4EE', auc:'#EDE7F5', tt:'#EDEDE9'};
+
+var CELLDEF=[
+ {k:'FN', cls:'fn', word:'defaulters missed<br>and given the loan'},
+ {k:'TP', cls:'tp', word:'defaulters caught<br>and refused'},
+ {k:'TN', cls:'tn', word:'good customers<br>correctly cleared'},
+ {k:'FP', cls:'fp', word:'good customers<br>wrongly refused'}
+];
+
+/* ---------- state ---------- */
+var mod='gb', met='rec', r=1;
+function cost(m){ return m.FN*r + m.FP; }
+function winner(){ return MODELS.reduce(function(a,b){ return cost(b)<cost(a)?b:a; }); }
+function posOf(v){ return (Math.log(v)-Math.log(RMIN))/(Math.log(RMAX)-Math.log(RMIN)); }
+function valAt(f){ return Math.exp(Math.log(RMIN)+f*(Math.log(RMAX)-Math.log(RMIN))); }
+function fr(v){ return v<10?v.toFixed(2):v.toFixed(1); }
+function inr(n){ return '\u20b9'+Math.round(n).toLocaleString('en-IN'); }
+function bestOn(k){
+  var low=MET(k).low;
+  return MODELS.reduce(function(a,b){ return (low? b[k]<a[k] : b[k]>a[k])?b:a; });
+}
+
+/* ---------- model chips ---------- */
+var mchips=document.getElementById('mchips');
+MODELS.forEach(function(m){
+  var b=document.createElement('button');
+  b.className='chip'; b.type='button'; b.dataset.key=m.key;
+  b.innerHTML=m.name+'<small>'+m.TP+'/'+m.FN+'/'+m.FP+'/'+m.TN+'</small>';
+  b.addEventListener('click',function(){ mod=m.key; render(); });
+  mchips.appendChild(b);
+});
+
+/* ---------- metric rows ---------- */
+var mlist=document.getElementById('mlist');
+METS.forEach(function(x){
+  var b=document.createElement('button');
+  b.className='mrow'; b.type='button'; b.dataset.k=x.k;
+  b.style.borderLeftColor=MCOL[x.k];
+  b.innerHTML='<span class="mn">'+x.h+'<small>'+FULL[x.k]+'</small></span>'+
+    '<span class="mv" data-v style="color:'+MCOL[x.k]+'"></span>'+
+    '<span class="mbar" data-s></span>';
+  b.addEventListener('click',function(){ met=x.k; render(); });
+  mlist.appendChild(b);
+});
+
+/* ---------- render ---------- */
+var strip=document.getElementById('strip');
+
+function render(){
+  var m=M(mod), x=MET(met);
+
+  /* chips */
+  Array.prototype.forEach.call(mchips.children,function(b){
+    b.setAttribute('aria-pressed',String(b.dataset.key===mod));
+  });
+
+  /* confusion matrix */
+  document.getElementById('cmName').textContent=m.name+' \u2014 the four boxes';
+  document.getElementById('cmSub').textContent=
+    'TP '+m.TP+' \u00b7 FN '+m.FN+' \u00b7 FP '+m.FP+' \u00b7 TN '+m.TN+'  \u2014  flags raised: '+m.flag+' of 1000';
+  var on=function(k){ return x.cells.indexOf(k)>-1?' on':''; };
+  document.getElementById('cm').innerHTML=
+    '<div class="lab"></div><div class="lab top">Model said safe</div><div class="lab top">Model said risky</div><div class="lab top"></div>'+
+    '<div class="lab side">Actually<br>defaulted<br><span style="font-weight:400;color:var(--ink-soft)">200 people</span></div>'+
+      '<div class="cell fn'+on('FN')+'"><span class="n">'+m.FN+'</span><span class="w">defaulters missed<br>and given the loan</span></div>'+
+      '<div class="cell tp'+on('TP')+'"><span class="n">'+m.TP+'</span><span class="w">defaulters caught<br>and refused</span></div>'+
+      '<div class="lab tot">200</div>'+
+    '<div class="lab side">Actually<br>repaid<br><span style="font-weight:400;color:var(--ink-soft)">800 people</span></div>'+
+      '<div class="cell tn'+on('TN')+'"><span class="n">'+m.TN+'</span><span class="w">good customers<br>correctly cleared</span></div>'+
+      '<div class="cell fp'+on('FP')+'"><span class="n">'+m.FP+'</span><span class="w">good customers<br>wrongly refused</span></div>'+
+      '<div class="lab tot">800</div>'+
+    '<div class="lab"></div><div class="lab tot">'+(m.FN+m.TN)+'</div><div class="lab tot">'+m.flag+'</div><div class="lab tot">1000</div>';
+  document.getElementById('cmUse').innerHTML =
+    x.cells.length ? x.h+' reads '+x.uses+'. The faded boxes play no part in it.'
+                   : x.h+' reads '+x.uses+' \u2014 every box is faded because this number cannot be worked out from them.';
+
+  /* metric rows */
+  METS.forEach(function(y){
+    var row=mlist.querySelector('.mrow[data-k="'+y.k+'"]');
+    row.classList.toggle('sel',y.k===met);
+    row.style.background = (y.k===met) ? MTINT[y.k] : 'var(--card)';
+    row.querySelector('[data-v]').textContent=m[y.k].toFixed(y.d);
+    var vals=MODELS.map(function(z){ return z[y.k]; });
+    var top=Math.max.apply(null,vals) || 1;
+    var bestv=bestOn(y.k)[y.k];
+    row.querySelector('[data-s]').innerHTML=
+      '<i style="width:'+(m[y.k]/top*100).toFixed(1)+'%;background:'+MCOL[y.k]+'"></i>'+
+      '<span class="bst" style="left:'+(bestv/top*100).toFixed(1)+'%"></span>'+
+      '<span class="bl">'+(y.low?'fastest ':'best ')+bestv.toFixed(y.d)+'</span>';
+    row.title=y.h+' \u2014 '+FULL[y.k];
+  });
+
+  /* explanation */
+  document.getElementById('exHead').innerHTML=
+    '<span style="color:'+MCOL[met]+'">'+x.h+'</span> <span style="font-weight:500;font-size:14px;color:var(--ink-soft)">\u2014 '+FULL[met]+'</span>';
+  document.getElementById('ex').innerHTML=
+    '<p>'+x.asks+'</p>'+
+    '<p class="calc" style="border-left:3px solid '+MCOL[met]+'">'+x.calc(m)+'</p>'+
+    '<div class="blind"><b>What it cannot see.</b> '+x.blind+'</div>';
+
+  /* bars across models */
+  var best=bestOn(met);
+  document.getElementById('barHead').innerHTML='What every model scores on <span style="color:'+MCOL[met]+'">'+x.h+'</span>';
+  var sorted=MODELS.slice().sort(function(a,b){ return x.low? a[met]-b[met] : b[met]-a[met]; });
+  var mx=Math.max.apply(null,MODELS.map(function(z){return z[met];}))||1;
+  document.getElementById('bars').innerHTML=sorted.map(function(z){
+    var w=(z[met]/mx*100);
+    var col = z.key===best.key ? MCOL[met] : (z.key===mod ? 'var(--ink)' : 'var(--dim)');
+    return '<div class="brow'+(z.key===best.key?' best':'')+(z.key===mod?' me':'')+'" data-key="'+z.key+'">'+
+      '<span class="bn">'+z.name+'</span><span class="btrack"><i style="width:'+w.toFixed(1)+'%;background:'+col+'"></i></span>'+
+      '<span class="bv">'+z[met].toFixed(x.d)+'</span></div>';
+  }).join('');
+  document.getElementById('spreadNote').innerHTML=x.spread;
+
+  /* dial */
+  var win=winner();
+  document.getElementById('qv').innerHTML='Missing a defaulter: <b>'+inr(r*100000)+
+    '</b> &nbsp;\u00b7&nbsp; Refusing a good customer: <b>'+inr(100000)+'</b> &nbsp;\u00b7&nbsp; ratio <b>'+fr(r)+'\u00d7</b>';
+  var bands=[],prev=null,S=800;
+  for(var i=0;i<=S;i++){
+    var f=i/S, v=valAt(f);
+    var w=MODELS.reduce(function(a,b){ return (b.FN*v+b.FP)<(a.FN*v+a.FP)?b:a; }).key;
+    if(w!==prev){ bands.push({key:w,from:f,to:f}); prev=w; } else bands[bands.length-1].to=f;
+  }
+  bands[bands.length-1].to=1;
+  strip.innerHTML=bands.map(function(b){
+    var w=(b.to-b.from)*100, nm=M(b.key).name;
+    return '<div class="band" style="left:'+(b.from*100)+'%;width:'+w+'%;background:'+BANDCOL[b.key]+'">'+
+      (w>12?'<span>'+nm+'</span>':(w>6?'<span>'+nm.split(' ')[0]+'</span>':''))+'</div>';
+  }).join('')+'<div class="mark" style="left:'+(posOf(r)*100)+'%"></div>';
+
+  var agree=METS.filter(function(y){ return bestOn(y.k).key===win.key; }).map(function(y){return y.k;});
+  document.getElementById('mo1').innerHTML='At '+fr(r)+'\u00d7, the cheapest model is <em>'+win.name+
+    '</em> at \u20b9'+cost(win).toFixed(0)+' lakh \u2014 '+win.FN+' missed \u00d7 '+inr(r*100000)+' plus '+
+    win.FP+' refused \u00d7 '+inr(100000)+'.';
+  document.getElementById('mo2').innerHTML = agree.length
+    ? 'The metric that agrees with that is <em>'+agree.map(function(k){return MET(k).h;}).join(', ')+
+      '</em>. Sort by that here. Drag the marker across a band edge and a different metric takes over \u2014 which is the whole answer to "which metric should I use".'
+    : 'No metric picks '+win.name+'. '+(win.key==='dum'
+      ? 'A rule that reads no files is cheapest at this price, so question the price before you question the models.'
+      : 'When no metric agrees with the money, trust the money.');
+
+  /* table */
+  document.getElementById('th').innerHTML='<th>Model</th>'+METS.map(function(y){
+    var c=[]; if(agree.indexOf(y.k)>-1) c.push('agree');
+    var st = (y.k===met) ? ' style="background:'+MTINT[y.k]+';color:'+MCOL[y.k]+'"' : '';
+    return '<th class="'+c.join(' ')+'"'+st+' data-k="'+y.k+'">'+y.h+'</th>';
+  }).join('')+'<th>Cost (\u20b9 lakh)</th>';
+  document.getElementById('tb').innerHTML=MODELS.slice().sort(function(a,b){return cost(a)-cost(b);})
+    .map(function(z){
+    return '<tr class="'+(z.key===mod?'sel':'')+'" data-key="'+z.key+'"><td>'+z.name+'</td>'+
+      METS.map(function(y){
+        var c=[]; if(bestOn(y.k).key===z.key) c.push('wc');
+        var st = (y.k===met) ? ' style="background:'+MTINT[y.k]+'"' : '';
+        return '<td class="'+c.join(' ')+'"'+st+'>'+z[y.k].toFixed(y.d)+'</td>';
+      }).join('')+'<td>'+cost(z).toFixed(0)+'</td></tr>';
+  }).join('');
+  document.getElementById('tnote').textContent=
+    'Teal-outlined columns: '+(agree.length? agree.map(function(k){return MET(k).h;}).join(', ')
+      : 'none at this price')+'. Every teal number is a column winner \u2014 notice how many different models own one.';
+}
+
+/* ---------- interaction ---------- */
+document.getElementById('bars').addEventListener('click',function(e){
+  var row=e.target.closest('.brow'); if(!row) return; mod=row.dataset.key; render();
+});
+document.getElementById('tb').addEventListener('click',function(e){
+  var tr=e.target.closest('tr'); if(!tr) return; mod=tr.dataset.key; render();
+});
+document.getElementById('th').addEventListener('click',function(e){
+  var th=e.target.closest('th'); if(!th||!th.dataset.k) return; met=th.dataset.k; render();
+});
+function setR(v){ r=Math.max(RMIN,Math.min(RMAX,v)); render(); }
+var drag=false;
+function fx(e){ var b=strip.getBoundingClientRect(); return Math.max(0,Math.min(1,(e.clientX-b.left)/b.width)); }
+strip.addEventListener('pointerdown',function(e){ drag=true;
+  if(strip.setPointerCapture) strip.setPointerCapture(e.pointerId); setR(valAt(fx(e))); e.preventDefault(); });
+strip.addEventListener('pointermove',function(e){ if(drag) setR(valAt(fx(e))); });
+strip.addEventListener('pointerup',function(){ drag=false; });
+strip.addEventListener('pointercancel',function(){ drag=false; });
+strip.addEventListener('keydown',function(e){
+  var f=posOf(r), s=(e.key==='PageUp'||e.key==='PageDown')?0.08:0.02;
+  if(e.key==='ArrowRight'||e.key==='ArrowUp'||e.key==='PageUp'){ e.preventDefault(); setR(valAt(f+s)); }
+  if(e.key==='ArrowLeft'||e.key==='ArrowDown'||e.key==='PageDown'){ e.preventDefault(); setR(valAt(f-s)); }
+});
+Array.prototype.forEach.call(document.querySelectorAll('.chip[data-r]'),function(b){
+  b.addEventListener('click',function(){ setR(parseFloat(b.dataset.r)); });
+});
+
+render();
+})();
+</script>
+</body>
+</html>

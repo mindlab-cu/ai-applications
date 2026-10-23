@@ -1,0 +1,1561 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Responsible AI Lab</title>
+<style>
+:root{
+  --base:#E7EBEF; --surface:#FBFCFD; --surface2:#F1F4F7; --ink:#14202E; --muted:#61728A;
+  --line:#CBD5E0; --line2:#DFE5EB;
+  --accent:#0B6E99; --accent-soft:#DDEEF6;
+  --pass:#1F7A4D; --warn:#B0730F; --fail:#B23033;
+  --pass-soft:#DFF0E6; --warn-soft:#FAEDD6; --fail-soft:#F8E0E0;
+  --r-s:5px; --r-m:9px;
+  --fs:16px;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --base:#0D141E; --surface:#151E2B; --surface2:#1B2634; --ink:#E4EBF3; --muted:#93A4B8;
+    --line:#2C3A4C; --line2:#233042;
+    --accent:#4FB0D8; --accent-soft:#12303E;
+    --pass:#5DBE88; --warn:#E0A63C; --fail:#E4736F;
+    --pass-soft:#14301F; --warn-soft:#332711; --fail-soft:#331A1A;
+  }
+}
+:root[data-theme="dark"]{
+  --base:#0D141E; --surface:#151E2B; --surface2:#1B2634; --ink:#E4EBF3; --muted:#93A4B8;
+  --line:#2C3A4C; --line2:#233042;
+  --accent:#4FB0D8; --accent-soft:#12303E;
+  --pass:#5DBE88; --warn:#E0A63C; --fail:#E4736F;
+  --pass-soft:#14301F; --warn-soft:#332711; --fail-soft:#331A1A;
+}
+:root[data-contrast="1"]{ --line:#7A8AA0; --line2:#7A8AA0; --muted:#3C4C63; }
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{
+  margin:0; background:var(--base); color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  font-size:var(--fs); line-height:1.5; -webkit-text-size-adjust:100%;
+}
+.wrap{max-width:1280px;margin:0 auto;padding:18px 16px 56px}
+h1,h2,h3{margin:0;font-weight:640;letter-spacing:-0.015em;line-height:1.2}
+p{margin:0 0 .6em}
+button,select,input,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+@media (prefers-reduced-motion: no-preference){
+  .bar > i, .ring circle{transition:all .35s ease}
+}
+
+/* header */
+.top{display:flex;flex-wrap:wrap;gap:14px 20px;align-items:flex-end;justify-content:space-between;
+  padding-bottom:14px;border-bottom:2px solid var(--ink)}
+.title h1{font-size:1.55rem}
+.title p{color:var(--muted);font-size:.86rem;margin:.25em 0 0;max-width:52ch}
+.topctl{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+label.fld{display:flex;flex-direction:column;gap:3px;font-size:.72rem;color:var(--muted)}
+select,input[type=text]{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-s);
+  padding:7px 9px;font-size:.88rem;min-width:180px}
+.btn{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-s);padding:7px 11px;
+  font-size:.82rem;cursor:pointer}
+.btn:hover{border-color:var(--accent);color:var(--accent)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.primary:hover{color:#fff;filter:brightness(1.08)}
+.gauge{display:flex;align-items:center;gap:11px}
+.ring{width:66px;height:66px;flex:none}
+.ring circle{fill:none;stroke-width:8}
+.gauge .num{font-size:1.5rem;font-weight:660;line-height:1}
+.gauge .lab{font-size:.74rem;color:var(--muted);max-width:14ch}
+
+/* banner + limitations */
+.banner{margin:14px 0 0;padding:10px 13px;border:1px solid var(--accent);background:var(--accent-soft);
+  border-radius:var(--r-m);font-size:.85rem;display:flex;gap:9px;align-items:flex-start}
+.banner b{font-weight:640}
+.limitbox{margin-top:12px;border:1px dashed var(--line);border-radius:var(--r-m);padding:11px 13px;font-size:.84rem;background:var(--surface2)}
+.hide{display:none !important}
+
+/* meters */
+.meters{display:grid;grid-template-columns:repeat(6,1fr);gap:9px;margin:16px 0}
+.tile{background:var(--surface);border:1px solid var(--line2);border-radius:var(--r-m);padding:10px 11px 11px;
+  text-align:left;cursor:pointer;display:flex;flex-direction:column;gap:7px;min-height:96px}
+.tile:hover{border-color:var(--accent)}
+.tile[aria-selected="true"]{border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink)}
+.tile .nm{font-size:.82rem;font-weight:620;line-height:1.25}
+.tile .sc{font-size:1.32rem;font-weight:660;font-variant-numeric:tabular-nums;line-height:1}
+.tile .st{font-size:.7rem;font-weight:620}
+.bar{height:6px;border-radius:3px;background:var(--line2);overflow:hidden}
+.bar > i{display:block;height:100%;border-radius:3px}
+.s-pass{color:var(--pass)} .s-warn{color:var(--warn)} .s-fail{color:var(--fail)}
+.b-pass{background:var(--pass)} .b-warn{background:var(--warn)} .b-fail{background:var(--fail)}
+
+/* layout */
+.cols{display:grid;grid-template-columns:352px minmax(0,1fr);gap:16px;align-items:start}
+.card{background:var(--surface);border:1px solid var(--line2);border-radius:var(--r-m);padding:14px 15px}
+.card + .card{margin-top:14px}
+.card h2{font-size:1.05rem;margin-bottom:2px}
+.defn{font-size:.83rem;color:var(--muted);margin:6px 0 12px;border-left:3px solid var(--line);padding-left:10px}
+
+/* controls */
+.ctl{padding:9px 0;border-top:1px solid var(--line2)}
+.ctl:first-of-type{border-top:0}
+.ctl .cname{display:flex;justify-content:space-between;gap:10px;font-size:.85rem;font-weight:560;align-items:baseline}
+.ctl .cval{font-variant-numeric:tabular-nums;color:var(--accent);font-weight:620;font-size:.82rem}
+.ctl .hint{font-size:.75rem;color:var(--muted);margin-top:3px}
+input[type=range]{width:100%;margin:8px 0 0;accent-color:var(--accent)}
+.sw{display:flex;gap:9px;align-items:flex-start;padding:7px 0;cursor:pointer}
+.sw input{margin:3px 0 0;accent-color:var(--accent);width:17px;height:17px;flex:none}
+.sw span{font-size:.85rem}
+.sw small{display:block;color:var(--muted);font-size:.74rem}
+.rowbtns{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}
+
+/* table */
+.tablewrap{overflow-x:auto;border:1px solid var(--line2);border-radius:var(--r-m);background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:.8rem}
+th,td{padding:6px 9px;text-align:left;border-bottom:1px solid var(--line2);white-space:nowrap}
+thead th{background:var(--surface2);vertical-align:top;position:sticky;top:0;z-index:2}
+td.num,th.num{text-align:right;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-variant-numeric:tabular-nums}
+.colhd{display:flex;flex-direction:column;gap:5px;min-width:86px}
+.colhd .cl{font-weight:620}
+.tag{font-size:.63rem;font-weight:620;padding:1px 5px;border-radius:3px;display:inline-block;border:1px solid}
+.t-id{color:var(--fail);border-color:var(--fail);background:var(--fail-soft)}
+.t-prot{color:var(--warn);border-color:var(--warn);background:var(--warn-soft)}
+.t-proxy{color:var(--accent);border-color:var(--accent);background:var(--accent-soft)}
+.t-legit{color:var(--pass);border-color:var(--pass);background:var(--pass-soft)}
+.ops{display:flex;gap:3px}
+.op{width:21px;height:21px;border:1px solid var(--line);background:var(--surface);border-radius:4px;
+  font-size:.66rem;font-weight:700;cursor:pointer;padding:0;line-height:19px;text-align:center;color:var(--muted)}
+.op:hover{border-color:var(--accent)}
+.op.on{background:var(--ink);border-color:var(--ink);color:var(--surface)}
+.op.on.feat{background:var(--pass);border-color:var(--pass);color:#fff}
+.op:disabled{opacity:.28;cursor:not-allowed}
+td.dropped,th.dropped .cl{opacity:.32;text-decoration:line-through}
+tr.excluded td{opacity:.38;font-style:italic}
+.pill{font-size:.7rem;font-weight:620;padding:1px 7px;border-radius:99px;border:1px solid}
+.p-yes{color:var(--pass);border-color:var(--pass);background:var(--pass-soft)}
+.p-no{color:var(--fail);border-color:var(--fail);background:var(--fail-soft)}
+.p-rev{color:var(--warn);border-color:var(--warn);background:var(--warn-soft)}
+.why{font-size:.72rem;color:var(--muted);white-space:normal;min-width:190px;max-width:260px}
+.why b{color:var(--fail);font-weight:620}
+.masked{color:var(--muted);letter-spacing:.09em}
+
+/* metrics + findings */
+.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(132px,1fr));gap:10px;margin-top:4px}
+.met{border:1px solid var(--line2);border-radius:var(--r-s);padding:9px 10px;background:var(--surface2)}
+.met .k{font-size:.72rem;color:var(--muted)}
+.met .v{font-size:1.12rem;font-weight:660;font-variant-numeric:tabular-nums}
+.find{list-style:none;margin:12px 0 0;padding:0;font-size:.83rem}
+.find li{display:flex;gap:8px;padding:5px 0;border-top:1px solid var(--line2);align-items:flex-start}
+.find li:first-child{border-top:0}
+.find .mk{flex:none;width:16px;font-weight:700}
+.grp{display:grid;grid-template-columns:1fr auto;gap:4px 10px;font-size:.8rem;margin-top:10px;align-items:center}
+.grp .gb{grid-column:1/-1;height:5px;border-radius:3px;background:var(--line2);overflow:hidden;margin-bottom:5px}
+.viewtabs{display:flex;gap:0;margin:16px 0 0;border-bottom:1px solid var(--line)}
+.vt{background:none;border:0;border-bottom:2px solid transparent;padding:8px 14px;cursor:pointer;
+  font-size:.92rem;font-weight:560;color:var(--muted)}
+.vt[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--ink)}
+.vt:hover{color:var(--accent)}
+.gsec{margin-top:24px}
+.gsec:first-of-type{margin-top:8px}
+.gsec h3{font-size:1.02rem;margin-bottom:3px}
+.lead{font-size:.84rem;color:var(--muted);margin:4px 0 12px;max-width:74ch}
+.gsec .lead{font-size:.84rem;color:var(--muted);margin:4px 0 12px;max-width:74ch}
+.grow{display:flex;gap:10px;padding:10px 0;border-top:1px solid var(--line2);align-items:flex-start}
+.grow:first-of-type{border-top:0}
+.dot{width:9px;height:9px;border-radius:50%;margin-top:6px;flex:none}
+.dot.good{background:var(--pass)} .dot.warn{background:var(--warn)}
+.dot.bad{background:var(--fail)} .dot.info{background:var(--accent)}
+.gn{font-size:.85rem;font-weight:600;display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.gv{font-size:.71rem;font-weight:700;padding:1px 8px;border-radius:99px;border:1px solid}
+.gv.good{color:var(--pass);border-color:var(--pass);background:var(--pass-soft)}
+.gv.warn{color:var(--warn);border-color:var(--warn);background:var(--warn-soft)}
+.gv.bad{color:var(--fail);border-color:var(--fail);background:var(--fail-soft)}
+.gv.info{color:var(--accent);border-color:var(--accent);background:var(--accent-soft)}
+.gd{font-size:.8rem;color:var(--muted);margin-top:3px;line-height:1.45;max-width:72ch}
+.gd em{color:var(--ink);font-style:normal;font-weight:560}
+.ccol{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:3px 10px;padding:8px 0;
+  border-top:1px solid var(--line2);align-items:center}
+.ccol .cn{font-size:.83rem;font-weight:600}
+.ccol .cd{font-size:.78rem;color:var(--muted);grid-column:1;line-height:1.4}
+.lanes{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px}
+.lane{border:1px solid var(--line2);border-radius:var(--r-m);padding:9px 10px;background:var(--surface2)}
+.lane h4{margin:0 0 2px;font-size:.8rem;font-weight:660}
+.lane .sub{font-size:.71rem;color:var(--muted);margin-bottom:7px;display:block}
+.chip{background:var(--surface);border:1px solid var(--line2);border-radius:var(--r-s);padding:5px 7px;
+  margin-top:5px;display:flex;justify-content:space-between;gap:8px;align-items:center;font-size:.79rem}
+.mini{display:inline-flex;gap:2px;flex:none}
+.mini b{width:17px;height:17px;border-radius:3px;font-size:.61rem;line-height:16px;text-align:center;
+  border:1px solid var(--line2);color:var(--muted);font-weight:700}
+.mini b.rec{background:var(--pass);border-color:var(--pass);color:#fff}
+.mini b.avoid{background:var(--fail-soft);border-color:var(--fail);color:var(--fail)}
+.flow{width:100%;height:auto;max-width:560px;display:block;margin:2px auto 0}
+.flow text{font-size:9.5px;fill:var(--ink);font-family:inherit}
+.flow .lab{fill:var(--muted);font-size:8.5px}
+.ctrlgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(246px,1fr));gap:10px}
+.ctrl{border:1px solid var(--line2);border-radius:var(--r-s);padding:9px 11px;background:var(--surface)}
+.ctrl .nm{font-weight:620;font-size:.84rem}
+.ctrl .w{font-size:.77rem;color:var(--muted);margin-top:5px;line-height:1.45}
+.ctrl .w em{color:var(--ink);font-style:normal;font-weight:560}
+.dirrow{display:flex;align-items:center;gap:7px;margin-top:6px}
+.dir{width:52px;height:7px;border-radius:4px;flex:none}
+.d-high{background:linear-gradient(90deg,var(--fail),var(--warn),var(--pass))}
+.d-low{background:linear-gradient(90deg,var(--pass),var(--warn),var(--fail))}
+.d-care{background:linear-gradient(90deg,var(--warn),var(--pass),var(--warn))}
+.d-tick{background:var(--pass)}
+.dirlab{font-size:.72rem;font-weight:640}
+.note{border-left:3px solid var(--accent);background:var(--accent-soft);padding:9px 12px;
+  border-radius:0 var(--r-s) var(--r-s) 0;font-size:.82rem;margin-top:12px}
+.note b{font-weight:640}
+.scen-tbl{width:100%;font-size:.8rem;border-collapse:collapse;margin-top:8px}
+.scen-tbl th,.scen-tbl td{text-align:left;padding:7px 9px;border-bottom:1px solid var(--line2);vertical-align:top;white-space:normal}
+.scen-tbl th{background:var(--surface2);font-weight:620}
+.scen-tbl tr.cur td{background:var(--accent-soft);font-weight:560}
+.traps{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px}
+.trap{border:1px solid var(--fail);border-radius:var(--r-s);padding:10px 11px;background:var(--fail-soft)}
+.trap h4{margin:0 0 4px;font-size:.84rem}
+.trap p{margin:0;font-size:.77rem;color:var(--ink);opacity:.85;line-height:1.45}
+@media (max-width:620px){ .ctrlgrid{grid-template-columns:1fr} }
+.log{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.73rem;max-height:150px;
+  overflow:auto;border:1px solid var(--line2);border-radius:var(--r-s);padding:8px;background:var(--surface2)}
+.log div{padding:1px 0;border-bottom:1px dotted var(--line2)}
+.foot{margin-top:18px;display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;
+  border-top:2px solid var(--ink);padding-top:12px;font-size:.85rem}
+.badge{border:1px solid var(--line);border-radius:99px;padding:4px 12px;font-size:.8rem;font-weight:620}
+.overlay{position:fixed;inset:0;background:rgba(6,12,20,.62);display:flex;align-items:center;justify-content:center;
+  padding:18px;z-index:50}
+.sheet{background:var(--surface);border-radius:var(--r-m);max-width:720px;width:100%;max-height:86vh;
+  display:flex;flex-direction:column;padding:16px 18px;border:1px solid var(--line);overscroll-behavior:contain}
+.sheet pre{flex:1 1 auto;overflow:auto;margin:10px 0}
+.sheet .rowbtns{flex:none;margin-top:0;padding-top:10px;border-top:1px solid var(--line2)}
+.sheet pre{white-space:pre-wrap;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.76rem;
+  background:var(--surface2);padding:12px;border-radius:var(--r-s);border:1px solid var(--line2)}
+@media (max-width:1040px){
+  .cols{grid-template-columns:1fr}
+  .meters{grid-template-columns:repeat(3,1fr)}
+}
+@media (max-width:560px){
+  .meters{grid-template-columns:repeat(2,1fr)}
+  .wrap{padding:12px 11px 40px}
+  select,input[type=text]{min-width:0;width:100%}
+  label.fld{width:100%}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="top">
+  <div class="title">
+    <h1>Responsible AI Lab</h1>
+    <p>Change the data and the system settings. Watch the six principles pass or fail, and read why.</p>
+  </div>
+  <div class="topctl">
+    <label class="fld">Scenario
+      <select id="scenario"></select>
+    </label>
+    <div class="gauge">
+      <svg class="ring" viewBox="0 0 36 36" aria-hidden="true">
+        <circle cx="18" cy="18" r="15.5" stroke="var(--line2)"></circle>
+        <circle id="ringFg" cx="18" cy="18" r="15.5" stroke="var(--fail)" stroke-linecap="round"
+          stroke-dasharray="0 100" transform="rotate(-90 18 18)"></circle>
+      </svg>
+      <div><div class="num" id="overallNum">0</div><div class="lab">Responsible AI readiness</div></div>
+    </div>
+  </div>
+</header>
+
+<div class="rowbtns" style="margin-top:12px">
+  <button class="btn" data-preset="careless">Careless deployment</button>
+  <button class="btn" data-preset="locked">Over-restricted</button>
+  <button class="btn" data-preset="balanced">Balanced</button>
+  <button class="btn" data-preset="reset">Reset</button>
+  <button class="btn" id="diffBtn">Compare with Balanced</button>
+  <button class="btn" id="themeBtn">Switch theme</button>
+</div>
+
+<div class="viewtabs" role="tablist" aria-label="View">
+  <button class="vt" id="vLab" role="tab" aria-selected="true">Lab</button>
+  <button class="vt" id="vGuide" role="tab" aria-selected="false">Guide to every control</button>
+</div>
+
+<div id="aiBanner" class="banner hide"></div>
+
+<div class="meters" id="meters" role="tablist" aria-label="Responsible AI principles"></div>
+
+<div class="cols">
+  <aside>
+    <div class="card" id="panel"></div>
+  </aside>
+  <section id="guideRight" class="hide"></section>
+  <section id="labRight">
+    <div class="card" style="padding:14px 15px">
+      <h2 id="dataTitle">Data and decisions</h2>
+      <p class="defn" id="dataNote"></p>
+      <div class="tablewrap"><table id="tbl"><thead></thead><tbody></tbody></table></div>
+      <div id="limitations" class="limitbox hide"></div>
+    </div>
+    <div class="card">
+      <h2 id="metTitle">Measurements</h2>
+      <div class="metrics" id="metrics"></div>
+      <div id="extra"></div>
+      <ul class="find" id="findings"></ul>
+    </div>
+    <div class="card hide" id="logCard">
+      <h2>Audit log</h2>
+      <p class="defn">Every change is recorded with a timestamp. This is what accountability looks like in practice.</p>
+      <div class="log" id="log"></div>
+    </div>
+  </section>
+</div>
+
+<div class="foot">
+  <div><span class="badge" id="challenge">Challenge: get all six meters to 70 or above, dropping no more than two columns.</span></div>
+  <div class="rowbtns" style="margin:0">
+    <button class="btn primary" id="auditBtn">Run audit report</button>
+  </div>
+</div>
+</div>
+
+<div class="overlay hide" id="overlay">
+  <div class="sheet" role="dialog" aria-modal="true" aria-label="Audit report">
+    <h2 id="sheetTitle">Audit report</h2>
+    <pre id="report"></pre>
+    <div class="rowbtns">
+      <button class="btn" id="copyBtn">Copy report</button>
+      <button class="btn primary" id="closeBtn">Close</button>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* ---------------- data ---------------- */
+function mk(keys, rows){ return rows.map(function(r,i){ var o={_i:i}; keys.forEach(function(k,j){o[k]=r[j];}); return o; }); }
+
+var SCEN = {};
+
+SCEN.loan = {
+  name:"Bank loan approval", subject:"applicant", outcome:"Loan approved",
+  note:"A bank scores applicants and decides who gets a loan. Money, credit history and job stability are relevant. Gender, category and disability are not.",
+  columns:[
+    {id:"name",  label:"Name",            role:"id"},
+    {id:"phone", label:"Phone",           role:"id"},
+    {id:"gender",label:"Gender",          role:"prot", bias:{Male:1,Female:-1,Other:-1.2}},
+    {id:"caste", label:"Category",        role:"prot", bias:{General:0.9,OBC:-0.3,SC:-1,ST:-1.1}},
+    {id:"disab", label:"Disability",      role:"prot", bias:{None:0.5,Hearing:-0.9,Mobility:-1,Vision:-1}},
+    {id:"age",   label:"Age",             role:"quasi", num:true, min:22, max:52},
+    {id:"area",  label:"Area",            role:"proxy", bias:{Urban:0.8,Rural:-0.9}, coarse:"India"},
+    {id:"income",label:"Income (Rs/mo)",  role:"legit", w:0.35, min:15000, max:100000, num:true},
+    {id:"credit",label:"Credit score",    role:"legit", w:0.45, min:580, max:800, num:true},
+    {id:"loans", label:"Existing loans",  role:"legit", w:-0.18, min:0, max:3, num:true},
+    {id:"years", label:"Years employed",  role:"legit", w:0.20, min:0, max:15, num:true}
+  ],
+  rows: mk(["name","phone","gender","caste","disab","age","area","income","credit","loans","years","ur"],[
+    ["Arjun Mehta","98xxxx2201","Male","General","None",34,"Urban",82000,760,1,8,0],
+    ["Priya Sharma","98xxxx4417","Female","General","None",29,"Urban",71000,742,0,6,1],
+    ["Ravi Kumar","97xxxx8830","Male","OBC","None",41,"Rural",38000,690,2,12,0],
+    ["Sunita Devi","96xxxx1192","Female","SC","None",37,"Rural",26000,655,1,9,1],
+    ["Imran Qureshi","99xxxx7743","Male","OBC","Hearing",31,"Urban",58000,715,1,5,1],
+    ["Neha Patil","95xxxx6620","Female","General","Vision",27,"Urban",64000,728,0,4,1],
+    ["Mahesh Naik","90xxxx3388","Male","ST","None",45,"Rural",22000,601,3,15,0],
+    ["Kavita Rao","93xxxx5514","Female","OBC","None",33,"Urban",47000,688,1,7,1],
+    ["Deepak Singh","88xxxx9071","Male","General","None",26,"Urban",55000,704,0,3,0],
+    ["Fatima Khan","97xxxx2265","Female","OBC","Mobility",39,"Rural",31000,663,2,11,1],
+    ["Rohit Verma","98xxxx8109","Male","SC","None",30,"Urban",44000,671,1,5,0],
+    ["Anita Gupta","96xxxx3452","Female","General","None",48,"Urban",96000,788,0,14,1],
+    ["Suresh Yadav","94xxxx7726","Male","OBC","None",36,"Rural",35000,640,2,10,0],
+    ["Meera Joshi","92xxxx4083","Female","ST","Hearing",25,"Rural",19000,612,1,2,1]
+  ])
+};
+
+SCEN.admit = {
+  name:"College admissions", subject:"student", outcome:"Offer made",
+  note:"A college shortlists students for a limited number of seats. Entrance marks and school results are relevant. Category, gender and home district are not.",
+  columns:[
+    {id:"name",  label:"Name",            role:"id"},
+    {id:"email", label:"Email",           role:"id"},
+    {id:"gender",label:"Gender",          role:"prot", bias:{Male:0.8,Female:-0.9,Other:-1.1}},
+    {id:"caste", label:"Category",        role:"prot", bias:{General:0.9,OBC:-0.3,SC:-1,ST:-1.1}},
+    {id:"disab", label:"Disability",      role:"prot", bias:{None:0.5,Hearing:-0.9,Mobility:-0.8,Vision:-1}},
+    {id:"age",   label:"Age",             role:"quasi", num:true, min:17, max:21},
+    {id:"dist",  label:"Home district",   role:"proxy", bias:{City:0.8,Town:-0.1,Village:-1}, coarse:"India"},
+    {id:"board", label:"School board",    role:"proxy", bias:{CBSE:0.6,ICSE:0.7,State:-0.8}, coarse:"School"},
+    {id:"entr",  label:"Entrance score",  role:"legit", w:0.50, min:120, max:290, num:true},
+    {id:"twelve",label:"Class 12 %",      role:"legit", w:0.32, min:55, max:97, num:true},
+    {id:"extra", label:"Activities (0-10)",role:"legit", w:0.13, min:0, max:10, num:true}
+  ],
+  rows: mk(["name","email","gender","caste","disab","age","dist","board","entr","twelve","extra","ur"],[
+    ["Aditya Rane","adi@mail","Male","General","None",18,"City","CBSE",268,93,7,0],
+    ["Sneha Kulkarni","sne@mail","Female","General","None",18,"City","ICSE",274,95,8,1],
+    ["Vikas Meena","vik@mail","Male","ST","None",19,"Village","State",231,84,4,0],
+    ["Lakshmi Iyer","lak@mail","Female","OBC","Vision",18,"Town","State",244,88,6,1],
+    ["Tarun Das","tar@mail","Male","SC","None",20,"Village","State",198,76,3,0],
+    ["Ayesha Sheikh","aye@mail","Female","OBC","None",17,"City","CBSE",256,90,5,1],
+    ["Manav Gill","man@mail","Male","General","Mobility",19,"Town","CBSE",239,86,7,1],
+    ["Pooja Nair","poo@mail","Female","SC","None",18,"Town","State",221,82,6,1],
+    ["Karan Bhatt","kar@mail","Male","General","None",18,"City","ICSE",249,89,9,0],
+    ["Ritu Chandra","rit@mail","Female","ST","Hearing",19,"Village","State",186,71,2,1],
+    ["Sameer Ali","sam@mail","Male","OBC","None",20,"Town","State",214,80,5,0],
+    ["Divya Menon","div@mail","Female","General","None",17,"City","CBSE",281,96,8,1],
+    ["Nitin Chauhan","nit@mail","Male","OBC","None",19,"Village","State",205,78,4,0],
+    ["Zoya Ansari","zoy@mail","Female","OBC","Mobility",18,"Town","State",233,85,6,1]
+  ])
+};
+
+SCEN.hire = {
+  name:"Resume screening", subject:"candidate", outcome:"Shortlisted",
+  note:"A company screens job applicants automatically. Skill test, experience and projects are relevant. Gender, age, college tier and home city are not.",
+  columns:[
+    {id:"name",  label:"Name",            role:"id"},
+    {id:"email", label:"Email",           role:"id"},
+    {id:"gender",label:"Gender",          role:"prot", bias:{Male:1,Female:-1,Other:-1.2}},
+    {id:"caste", label:"Category",        role:"prot", bias:{General:0.7,OBC:-0.2,SC:-0.9,ST:-1}},
+    {id:"disab", label:"Disability",      role:"prot", bias:{None:0.5,Hearing:-1,Mobility:-0.9,Vision:-1.1}},
+    {id:"age",   label:"Age",             role:"prot", bias:{}, num:true, min:22, max:52, ageBias:true, quasi:true},
+    {id:"city",  label:"Home city",       role:"proxy", bias:{Metro:0.8,"Non-metro":-0.9}, coarse:"India"},
+    {id:"clg",   label:"College tier",    role:"proxy", bias:{"Tier-1":1,"Tier-2":0,"Tier-3":-1}, coarse:"Graduate"},
+    {id:"test",  label:"Skill test",      role:"legit", w:0.45, min:40, max:98, num:true},
+    {id:"exp",   label:"Experience (yr)", role:"legit", w:0.28, min:0, max:12, num:true},
+    {id:"proj",  label:"Projects",        role:"legit", w:0.15, min:0, max:9, num:true},
+    {id:"comm",  label:"Communication",   role:"legit", w:0.12, min:3, max:10, num:true}
+  ],
+  rows: mk(["name","email","gender","caste","disab","age","city","clg","test","exp","proj","comm","ur"],[
+    ["Nikhil Sood","nik@mail","Male","General","None",27,"Metro","Tier-1",88,4,6,8,0],
+    ["Shreya Bose","shr@mail","Female","General","None",29,"Metro","Tier-2",91,5,7,9,1],
+    ["Amit Lohar","ami@mail","Male","SC","None",34,"Non-metro","Tier-3",74,9,4,6,0],
+    ["Rukmini Das","ruk@mail","Female","OBC","Hearing",26,"Non-metro","Tier-3",81,3,5,7,1],
+    ["Vivek Rathi","viv@mail","Male","General","None",45,"Metro","Tier-2",79,12,6,8,1],
+    ["Tanvi Shah","tan@mail","Female","General","None",24,"Metro","Tier-1",84,2,6,8,1],
+    ["Harish Pillai","har@mail","Male","OBC","Mobility",31,"Non-metro","Tier-2",77,6,5,6,1],
+    ["Neelam Yadav","nee@mail","Female","ST","None",28,"Non-metro","Tier-3",69,4,3,6,1],
+    ["Rohan Kapoor","roh@mail","Male","General","None",25,"Metro","Tier-1",93,2,8,9,0],
+    ["Sadia Rahman","sad@mail","Female","OBC","None",33,"Metro","Tier-2",86,8,7,8,1],
+    ["Gaurav Jain","gau@mail","Male","General","None",38,"Metro","Tier-1",72,11,4,7,0],
+    ["Anjali Murmu","anj@mail","Female","ST","Vision",30,"Non-metro","Tier-3",83,6,6,7,1],
+    ["Farhan Sayed","far@mail","Male","OBC","None",48,"Non-metro","Tier-2",66,12,3,6,1],
+    ["Ishita Roy","ish@mail","Female","General","None",23,"Metro","Tier-2",89,1,7,9,1]
+  ])
+};
+
+SCEN.triage = {
+  name:"Hospital triage", subject:"patient", outcome:"Urgent care now",
+  note:"A hospital tool ranks who is seen first. Symptoms, vitals and existing conditions are relevant, and here age genuinely is too. Insurance type and area are not.",
+  columns:[
+    {id:"name",  label:"Name",            role:"id"},
+    {id:"pid",   label:"Patient ID",      role:"id"},
+    {id:"gender",label:"Gender",          role:"prot", bias:{Male:0.8,Female:-0.9,Other:-1}},
+    {id:"disab", label:"Disability",      role:"prot", bias:{None:0.4,Hearing:-0.9,Mobility:-0.8,Speech:-1.1}},
+    {id:"lang",  label:"Language",        role:"prot", bias:{English:0.9,Hindi:-0.2,Regional:-1}},
+    {id:"ins",   label:"Insurance",       role:"proxy", bias:{Private:1,Government:-0.3,None:-1}, coarse:"Any"},
+    {id:"area",  label:"Area",            role:"proxy", bias:{Urban:0.7,Rural:-0.8}, coarse:"India"},
+    {id:"age",   label:"Age",             role:"legit", w:0.18, min:4, max:88, num:true, quasi:true},
+    {id:"sev",   label:"Symptom severity",role:"legit", w:0.48, min:1, max:10, num:true},
+    {id:"vit",   label:"Vitals risk",     role:"legit", w:0.30, min:10, max:95, num:true},
+    {id:"com",   label:"Other conditions",role:"legit", w:0.16, min:0, max:4, num:true}
+  ],
+  rows: mk(["name","pid","gender","disab","lang","ins","area","age","sev","vit","com","ur"],[
+    ["Ramesh Pawar","P-1041","Male","None","Hindi","Private","Urban",62,7,71,2,0],
+    ["Geeta Bansal","P-1042","Female","None","Hindi","Government","Urban",55,8,78,1,1],
+    ["Salim Shaikh","P-1043","Male","Hearing","Regional","None","Rural",47,6,64,2,1],
+    ["Lata Kamble","P-1044","Female","Mobility","Regional","Government","Rural",71,9,84,3,1],
+    ["Vishal Dubey","P-1045","Male","None","English","Private","Urban",29,4,38,0,0],
+    ["Asha Reddy","P-1046","Female","None","English","Private","Urban",66,5,55,2,1],
+    ["Karim Baig","P-1047","Male","Speech","Hindi","None","Rural",58,8,73,3,1],
+    ["Pinky Sahu","P-1048","Female","None","Regional","Government","Rural",34,7,66,1,1],
+    ["Anil Thakur","P-1049","Male","None","Hindi","Private","Urban",78,6,69,4,0],
+    ["Mary Fernandes","P-1050","Female","Hearing","English","Government","Urban",41,3,32,0,1],
+    ["Sunil Jat","P-1051","Male","None","Regional","None","Rural",23,9,81,0,0],
+    ["Rekha Bhoi","P-1052","Female","Mobility","Hindi","Government","Rural",69,8,77,3,1],
+    ["Om Prakash","P-1053","Male","None","Hindi","Private","Urban",8,5,58,1,0],
+    ["Nazia Parveen","P-1054","Female","None","Regional","None","Rural",52,2,28,1,1]
+  ])
+};
+
+var PRINCIPLES = [
+  {id:"fair",  name:"Fairness",
+    defn:"AI should not discriminate based on gender, caste, race, religion, disability or other irrelevant factors. Systems must be tested for bias."},
+  {id:"rel",   name:"Reliability and safety",
+    defn:"The system should work correctly and safely. AI can make mistakes, so checks and safeguards are needed."},
+  {id:"priv",  name:"Privacy and security",
+    defn:"Personal and sensitive data must be protected. The system should not expose private information."},
+  {id:"incl",  name:"Inclusiveness",
+    defn:"AI should be usable by everyone, including people with disabilities. A speech system should also give text captions."},
+  {id:"trans", name:"Transparency",
+    defn:"People should know they are dealing with AI, and the system should explain its limits."},
+  {id:"acct",  name:"Accountability",
+    defn:"Developers and organisations are answerable for outcomes, and need rules and governance for safe use."}
+];
+
+/* ---------------- state ---------------- */
+var S, scenKey, active = "fair", log = [], suppressLog = false;
+
+function defaultState(){
+  return {
+    cols:{}, skew:60, auditAttr:null,
+    accuracy:85, noise:8, threshold:70, humanReview:false, fallback:false,
+    encrypt:false, access:false, retention:36, consent:false,
+    captions:false, altText:false, keyboard:false, plain:false, langs:false, lowband:false,
+    textSize:16, contrast:false, represent:35,
+    disclose:false, reasons:false, showConf:false, limits:false, modelCard:false,
+    owner:"", auditLog:false, appeals:false, incident:false, review:false
+  };
+}
+function initCols(st, sc){
+  st.cols = {};
+  var firstProt = sc.columns.filter(function(c){return c.role==="prot";})[0];
+  sc.columns.forEach(function(c){
+    st.cols[c.id] = {
+      /* the usual starting point: someone put every available column into the model */
+      feature: c.role === "legit" || c.role === "proxy" || (firstProt && c.id === firstProt.id),
+      masked:false, general:false, dropped:false
+    };
+  });
+  st.auditAttr = sc.columns.filter(function(c){return c.role==="prot";})[0].id;
+}
+function scen(){ return SCEN[scenKey]; }
+/* start each scenario auditing the group with the widest gap, so the problem is visible */
+function pickWorstAttr(){
+  var res = evaluate(), best = S.auditAttr, low = 1e9;
+  scen().columns.filter(function(c){return c.role==="prot";}).forEach(function(c){
+    var g = {};
+    res.filter(function(r){return r.included;}).forEach(function(r){
+      var key = c.num ? (r.row[c.id] <= 35 ? "a" : "b") : String(r.row[c.id]);
+      g[key] = g[key] || {n:0, yes:0, tyes:0}; g[key].n++; if(r.decision) g[key].yes++; if(r.truth) g[key].tyes++;
+    });
+    var rates = [], rt = [];
+    for(var k in g){ if(g[k].n >= 3){ rates.push(g[k].yes/g[k].n); rt.push(g[k].tyes/g[k].n); } }
+    if(rates.length < 2) return;
+    var mx = Math.max.apply(null, rates), mn = Math.min.apply(null, rates);
+    var mxT = Math.max.apply(null, rt), mnT = Math.min.apply(null, rt);
+    var d = (mx > 0 ? mn/mx : 1) - (mxT > 0 ? mnT/mxT : 1);
+    if(d < low){ low = d; best = c.id; }
+  });
+  S.auditAttr = best;
+}
+function cfg(id){ return S.cols[id]; }
+function colById(id){ return scen().columns.filter(function(c){return c.id===id;})[0]; }
+function quasiCols(){ return scen().columns.filter(function(c){return c.role==="quasi"||c.role==="proxy"||c.quasi;}); }
+
+/* deterministic pseudo random per row */
+function rnd(seed){ var x = Math.sin(seed*9301+49297)*233280; return x - Math.floor(x); }
+
+/* ---------------- model ---------------- */
+function normVal(c, v, general){
+  var t = (v - c.min) / (c.max - c.min);
+  t = Math.max(0, Math.min(1, t));
+  if(general) t = (Math.floor(t*3.999)+0.5)/4;   // 4 coarse bands: information is lost
+  return t;
+}
+function biasOf(c, row, gen){
+  if(c.ageBias){ var a = row.age; return a<=30?0.9:(a<=38?0.2:(a<=45?-0.6:-1.1)); }
+  var b = c.bias ? c.bias[row[c.id]] : 0;
+  if(b === undefined) b = 0;
+  if(gen) b = b*0.35; // generalising a proxy weakens but does not remove the signal
+  return b;
+}
+function included(row){
+  var sc = scen();
+  var urRows = sc.rows.filter(function(r){return r.ur;});
+  if(!row.ur) return true;
+  var pos = urRows.indexOf(row);
+  return (pos+1) <= Math.round(urRows.length * S.represent/100);
+}
+function rows(){ return scen().rows.filter(included); }
+
+function evaluate(){
+  var sc = scen(), out = [];
+  var legit = sc.columns.filter(function(c){return c.role==="legit";});
+  var skewN = S.skew/100, noiseN = S.noise/100;
+  sc.rows.forEach(function(row){
+    var s = 0, used = 0, missing = null, full = 0;
+    var contrib = [];
+    var r1 = rnd(row._i+1), r2 = rnd(row._i+37), r3 = rnd(row._i+71);
+    var noisy = r2 < noiseN;
+    legit.forEach(function(c, k){
+      var st = cfg(c.id);
+      full += c.w * (normVal(c, row[c.id], false) - 0.5);
+      if(st.dropped || !st.feature) return;
+      if(noisy && k === Math.floor(r3*legit.length)){ missing = c.id; return; }
+      var t = normVal(c, row[c.id], st.general);
+      s += c.w * (t - 0.5); used++;
+      contrib.push({id:c.id, label:c.label, v:c.w*(t-0.5)});
+    });
+    var b = 0, sources = [];
+    sc.columns.forEach(function(c){
+      var st = cfg(c.id);
+      if(st.dropped || !st.feature) return;
+      if(c.role === "prot"){ var x = 0.34*skewN*biasOf(c,row,st.general); b += x; if(Math.abs(x)>0.02) sources.push(c.label); }
+      if(c.role === "proxy"){ var y = 0.20*skewN*biasOf(c,row,st.general); b += y; if(Math.abs(y)>0.02) sources.push(c.label+" (proxy)"); }
+    });
+    var p = Math.max(0.02, Math.min(0.98, 0.5 + s + b));
+    var truth = (0.5 + full) >= 0.5;
+    var decision = p >= 0.5;
+    var flipped = r1 > S.accuracy/100;
+    if(flipped) decision = !decision;
+    var coverage = legit.length ? used/legit.length : 0;
+    var conf = Math.abs(p-0.5)*2 * (0.35 + 0.65*coverage) * (noisy?0.55:1);
+    conf = Math.max(0.03, Math.min(0.99, conf));
+    var lowConf = conf*100 < S.threshold;
+    contrib.sort(function(a,z){return Math.abs(z.v)-Math.abs(a.v);});
+    out.push({row:row, p:p, conf:conf, decision:decision, truth:truth, flipped:flipped,
+      noisy:noisy, missing:missing, lowConf:lowConf, bias:b, sources:sources,
+      contrib:contrib.slice(0,2), used:used, included:included(row)});
+  });
+  return out;
+}
+
+/* ---------------- scores ---------------- */
+function kAnonymity(){
+  var qs = quasiCols().filter(function(c){ var st=cfg(c.id); return !st.dropped && !st.masked; });
+  var rs = rows();
+  if(!qs.length) return rs.length;
+  var map = {};
+  rs.forEach(function(r){
+    var key = qs.map(function(c){
+      var st = cfg(c.id);
+      if(st.general) return c.num ? "band" + Math.floor(normVal(c, r[c.id], true)*4) : (c.coarse||"coarse");
+      return String(r[c.id]);
+    }).join("|");
+    map[key] = (map[key]||0)+1;
+  });
+  var k = 1e9; for(var key in map) k = Math.min(k, map[key]);
+  return k;
+}
+
+function scoreAll(res){
+  var sc = scen(), f = {};
+  var inc = res.filter(function(r){return r.included;});
+  var n = inc.length || 1;
+
+  /* fairness */
+  var ac = colById(S.auditAttr), acs = cfg(S.auditAttr);
+  var groups = {}, di = 1, unverifiable = acs.dropped || acs.masked;
+  inc.forEach(function(r){
+    var g = String(r.row[S.auditAttr]);
+    if(ac.num) g = r.row[S.auditAttr] <= 35 ? "Age 35 or under" : "Over 35";
+    groups[g] = groups[g] || {n:0, yes:0, tyes:0};
+    groups[g].n++; if(r.decision) groups[g].yes++; if(r.truth) groups[g].tyes++;
+  });
+  var rates = [], ratesT = [];
+  for(var g in groups){ if(groups[g].n >= 3){ rates.push(groups[g].yes/groups[g].n); ratesT.push(groups[g].tyes/groups[g].n); } }
+  var mx = Math.max.apply(null, rates.concat([0]));
+  var mn = Math.min.apply(null, rates.concat([1]));
+  di = mx > 0 ? mn/mx : 1;
+  var mxT = Math.max.apply(null, ratesT.concat([0]));
+  var mnT = Math.min.apply(null, ratesT.concat([1]));
+  var diBase = mxT > 0 ? mnT/mxT : 1;
+  var tooFew = rates.length < 2;
+  if(tooFew) unverifiable = true;
+  var directUse = sc.columns.filter(function(c){return c.role==="prot" && cfg(c.id).feature && !cfg(c.id).dropped;});
+  var proxyUse  = sc.columns.filter(function(c){return c.role==="proxy" && cfg(c.id).feature && !cfg(c.id).dropped;});
+  var fair = Math.round(Math.min(100, di*125));
+  var fFind = [];
+  var nobody = mx === 0;
+  fFind.push({ok:di>=0.8 && !nobody, t:nobody ? "Nobody at all is selected, so there is nothing to compare between groups."
+    : "Disparate impact ratio is "+di.toFixed(2)+". The 80% rule expects 0.80 or more."});
+  if(nobody) fair = Math.min(fair, 55);
+  if(directUse.length){ fair = Math.min(fair, 40);
+    fFind.push({ok:false, t:"The model uses "+directUse.map(function(c){return c.label;}).join(", ")+" directly as a decision feature."}); }
+  else fFind.push({ok:true, t:"No protected attribute is used directly as a decision feature."});
+  if(proxyUse.length && S.skew > 15){
+    fFind.push({ok:false, t:proxyUse.map(function(c){return c.label;}).join(", ")+" acts as a proxy and leaks the same bias into the decision."});
+    fair = Math.min(fair, 72);
+  }
+  if(S.skew > 40) fFind.push({ok:false, t:"Historical bias in the training data is set to "+S.skew+"%. Bias in, bias out."});
+  if(tooFew){ fair = Math.min(fair, 35);
+    fFind.push({ok:false, t:"Fewer than two groups have at least three records here, so there is nothing to compare. A group you left out of the data is a group you cannot protect."}); }
+  else if(unverifiable){ fair = Math.min(fair, 35);
+    fFind.push({ok:false, t:"The attribute being audited is hidden, so fairness cannot be measured at all. Deleting a protected column does not remove bias, it only hides the evidence."}); }
+  else fFind.push({ok:true, t:"The protected attribute is retained for auditing, which is what makes the test above possible."});
+  if(di < 0.8 && di >= diBase - 0.02 && !directUse.length && !unverifiable){
+    fair = Math.max(fair, 78);
+    fFind.push({ok:true, t:"The gap of "+di.toFixed(2)+" is already present in the raw data ("+diBase.toFixed(2)+" before the model). The model is not adding bias of its own, but the inequality in the world has not gone away either."});
+  }
+  if(S.represent < 50) fFind.push({ok:false, t:"Under-represented groups are only "+S.represent+"% included, so the fairness test itself rests on very few people."});
+  f.fair = {score:clamp(fair), find:fFind, groups:groups, di:di, diBase:diBase};
+
+  /* reliability */
+  var errors = inc.filter(function(r){return r.flipped;}).length;
+  var lowc = inc.filter(function(r){return r.lowConf;}).length;
+  var unsafe = S.humanReview ? 0 : lowc;
+  var relScore = Math.round(55*((S.accuracy-60)/39) + 30*(1-unsafe/n) + 15*(1-S.noise/40));
+  if(!S.fallback) relScore -= 8;
+  var featCount = sc.columns.filter(function(c){return c.role==="legit" && cfg(c.id).feature && !cfg(c.id).dropped;}).length;
+  var totalLegit = sc.columns.filter(function(c){return c.role==="legit";}).length;
+  if(featCount < totalLegit/2){ relScore = Math.min(relScore, 45); }
+  var rFind = [
+    {ok:S.accuracy>=85, t:"Model accuracy is "+S.accuracy+"%. It gets "+errors+" of "+n+" decisions wrong in this sample."},
+    {ok:unsafe===0, t:unsafe===0 ? "Low-confidence cases are sent to a human, so nothing risky is decided automatically."
+      : unsafe+" decisions below the "+S.threshold+"% confidence line were made automatically with no human check."},
+    {ok:S.noise<=10, t:"Data quality problems affect "+S.noise+"% of records. Missing values are shown as a dash in the table."},
+    {ok:S.fallback, t:S.fallback ? "A fallback path exists for when the model fails." : "There is no fallback path if the model fails or goes offline."},
+    {ok:featCount>=totalLegit/2, t:featCount+" of "+totalLegit+" relevant features are in use. Removing too much useful data makes the system unreliable, which is the cost side of privacy."}
+  ];
+  f.rel = {score:clamp(relScore), find:rFind, errors:errors, lowc:lowc, unsafe:unsafe};
+
+  /* privacy */
+  var idsVisible = sc.columns.filter(function(c){return c.role==="id" && !cfg(c.id).dropped && !cfg(c.id).masked;});
+  var k = kAnonymity();
+  var priv = 100;
+  priv -= idsVisible.length*24;
+  priv -= (k<2?26:(k<3?13:0));
+  if(!S.encrypt) priv -= 12;
+  if(!S.access) priv -= 10;
+  if(!S.consent) priv -= 8;
+  if(S.retention > 24) priv -= 8;
+  var pFind = [
+    {ok:idsVisible.length===0, t:idsVisible.length ? idsVisible.map(function(c){return c.label;}).join(", ")+" identify a person directly and are still visible. Mask or drop them."
+      : "No direct identifier is exposed."},
+    {ok:k>=3, t:"k-anonymity is "+(k>=1e8?"n/a":k)+". "+(k<2 ? "At least one person is unique on the remaining columns and can be re-identified even without a name."
+      : "Every record shares its quasi-identifiers with at least "+(k-1)+" other people.")},
+    {ok:S.encrypt, t:S.encrypt?"Data is encrypted at rest and in transit.":"Data is stored without encryption."},
+    {ok:S.access, t:S.access?"Access is restricted to staff who need it.":"Any employee can open the full table."},
+    {ok:S.consent, t:S.consent?"People were told what their data would be used for.":"Data is reused without informing the people it belongs to."},
+    {ok:S.retention<=24, t:"Records are kept for "+S.retention+" months."+(S.retention>24?" Keeping data longer than needed increases risk.":"")}
+  ];
+  f.priv = {score:clamp(priv), find:pFind, k:k, ids:idsVisible.length};
+
+  /* inclusiveness */
+  var togs = [
+    {k:"captions", t:"Text captions for any speech or audio output"},
+    {k:"altText",  t:"Screen reader labels on every control and result"},
+    {k:"keyboard", t:"Full keyboard operation without a mouse"},
+    {k:"plain",    t:"Plain language, no unexplained jargon"},
+    {k:"langs",    t:"Available in more than one language"},
+    {k:"lowband",  t:"Works on a slow connection and an old phone"}
+  ];
+  var onCount = togs.filter(function(t){return S[t.k];}).length;
+  var access = (S.textSize>=18?1:0) + (S.contrast?1:0);
+  var incl = Math.round((onCount/6)*55 + (access/2)*10 + (S.represent/100)*35);
+  var iFind = togs.map(function(t){ return {ok:S[t.k], t:t.t}; });
+  iFind.push({ok:S.represent>=70, t:"Under-represented groups make up "+S.represent+"% of their real numbers in this dataset."
+    +(S.represent<70?" The system has barely been tested on them.":"")});
+  iFind.push({ok:access===2, t:"Text size and contrast controls are available to the reader. Try them: this page really changes."});
+  f.incl = {score:clamp(incl), find:iFind, onCount:onCount};
+
+  /* transparency */
+  var tg = [
+    {k:"disclose", t:"People are told the decision is made by AI"},
+    {k:"reasons",  t:"Each decision comes with the reasons behind it"},
+    {k:"showConf", t:"The confidence of each decision is visible"},
+    {k:"limits",   t:"Known limitations are stated openly"},
+    {k:"modelCard",t:"A model card records what data was used and what was tested"}
+  ];
+  var tOn = tg.filter(function(t){return S[t.k];}).length;
+  f.trans = {score:clamp(Math.round(tOn/5*100)), find:tg.map(function(t){return {ok:S[t.k], t:t.t};}), onCount:tOn};
+
+  /* accountability */
+  var ag = [
+    {ok:S.owner.trim().length>1, t:S.owner.trim()?("A named person, "+S.owner.trim()+", is answerable for outcomes."):"No named owner. When something goes wrong, nobody is answerable."},
+    {ok:S.auditLog, t:S.auditLog?"Every change is logged and can be reviewed later.":"No audit log, so changes cannot be traced."},
+    {ok:S.appeals, t:S.appeals?"People can appeal a decision and reach a human.":"People affected have no way to challenge a decision."},
+    {ok:S.incident, t:S.incident?"An incident plan says what happens if harm occurs.":"No plan for handling harm caused by the system."},
+    {ok:S.review, t:S.review?"The system is re-tested on a fixed schedule.":"No scheduled re-testing after launch."}
+  ];
+  f.acct = {score:clamp(Math.round(ag.filter(function(a){return a.ok;}).length/5*100)), find:ag};
+
+  return f;
+}
+function clamp(v){ return Math.max(0, Math.min(100, Math.round(v))); }
+function band(v){ return v>=70 ? "pass" : (v>=45 ? "warn" : "fail"); }
+function bandWord(v){ return v>=70 ? "Meets" : (v>=45 ? "At risk" : "Fails"); }
+
+/* ---------------- rendering ---------------- */
+var el = function(id){ return document.getElementById(id); };
+var esc = function(s){ return String(s).replace(/[&<>"]/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c]; }); };
+
+function render(){
+  document.documentElement.style.setProperty("--fs", S.textSize+"px");
+  document.documentElement.setAttribute("data-contrast", S.contrast?"1":"0");
+  var res = evaluate(), f = scoreAll(res);
+  renderMeters(f);
+  renderTable(res);
+  renderMetrics(res, f);
+  renderOverall(f);
+  renderChrome(f);
+  if(view === "guide") renderGuide();
+  return {res:res, f:f};
+}
+
+function renderOverall(f){
+  var ids = PRINCIPLES.map(function(p){return p.id;});
+  var avg = Math.round(ids.reduce(function(a,id){return a+f[id].score;},0)/ids.length);
+  el("overallNum").textContent = avg;
+  var fg = el("ringFg");
+  fg.setAttribute("stroke-dasharray", (avg*0.975)+" 100");
+  fg.setAttribute("stroke", "var(--"+band(avg)+")");
+  var dropped = scen().columns.filter(function(c){return cfg(c.id).dropped;}).length;
+  var allGreen = ids.every(function(id){return f[id].score>=70;});
+  var ch = el("challenge");
+  if(allGreen && dropped<=2){ ch.textContent = "Challenge passed. All six principles are met with "+dropped+" column(s) dropped."; ch.style.borderColor="var(--pass)"; ch.style.color="var(--pass)"; }
+  else { ch.textContent = "Challenge: all six meters at 70 or above, dropping no more than two columns. Now: "
+    + ids.filter(function(id){return f[id].score>=70;}).length + "/6 met, " + dropped + " dropped.";
+    ch.style.borderColor="var(--line)"; ch.style.color="var(--ink)"; }
+}
+
+function renderMeters(f){
+  el("meters").innerHTML = PRINCIPLES.map(function(p){
+    var s = f[p.id].score, b = band(s);
+    return '<button class="tile" role="tab" aria-selected="'+(active===p.id)+'" data-p="'+p.id+'">'
+      + '<div class="nm">'+p.name+'</div>'
+      + '<div class="sc s-'+b+'">'+s+'</div>'
+      + '<div class="bar"><i class="b-'+b+'" style="width:'+s+'%"></i></div>'
+      + '<div class="st s-'+b+'">'+bandWord(s)+'</div></button>';
+  }).join("");
+}
+
+function renderTable(res){
+  var sc = scen(), th = el("tbl").tHead, tb = el("tbl").tBodies[0];
+  el("dataNote").textContent = sc.note;
+  el("dataTitle").textContent = "Data and decisions: " + sc.name;
+  var head = "<tr>";
+  sc.columns.forEach(function(c){
+    var st = cfg(c.id);
+    var tagCls = c.role==="id"?"t-id":c.role==="prot"?"t-prot":c.role==="proxy"?"t-proxy":c.role==="legit"?"t-legit":"";
+    var tagTxt = c.role==="id"?"identifier":c.role==="prot"?"protected":c.role==="proxy"?"proxy":c.role==="legit"?"relevant":"quasi-id";
+    var canFeat = (c.role==="legit"||c.role==="prot"||c.role==="proxy");
+    head += '<th class="'+(st.dropped?"dropped":"")+(c.num?" num":"")+'"><div class="colhd">'
+      + '<span class="cl">'+esc(c.label)+'</span>'
+      + (tagCls?'<span><span class="tag '+tagCls+'">'+tagTxt+'</span></span>':'<span><span class="tag">quasi-id</span></span>')
+      + '<span class="ops">'
+      + '<button class="op feat '+(st.feature&&!st.dropped?"on":"")+'" data-op="feature" data-c="'+c.id+'" '+(canFeat?"":"disabled")+' title="Use this column as a decision feature">F</button>'
+      + '<button class="op '+(st.masked?"on":"")+'" data-op="masked" data-c="'+c.id+'" title="Mask the values">M</button>'
+      + '<button class="op '+(st.general?"on":"")+'" data-op="general" data-c="'+c.id+'" title="Generalise into broad bands">G</button>'
+      + '<button class="op '+(st.dropped?"on":"")+'" data-op="dropped" data-c="'+c.id+'" title="Remove the column completely">X</button>'
+      + '</span></div></th>';
+  });
+  head += '<th>'+esc(sc.outcome)+'</th>';
+  if(S.showConf) head += '<th class="num">Confidence</th>';
+  if(S.reasons) head += '<th>Why</th>';
+  head += "</tr>";
+  th.innerHTML = head;
+
+  tb.innerHTML = res.map(function(r){
+    var tr = '<tr class="'+(r.included?"":"excluded")+'">';
+    sc.columns.forEach(function(c){
+      var st = cfg(c.id), v = r.row[c.id], out;
+      if(st.dropped) out = "&mdash;";
+      else if(st.masked) out = '<span class="masked">'+(c.num?"####":"\u25CF\u25CF\u25CF\u25CF\u25CF")+'</span>';
+      else if(st.general) out = c.num ? bandLabel(c, v) : (c.coarse||"Any");
+      else out = esc(v);
+      if(r.missing === c.id && !st.dropped) out = '<span class="masked" title="Value missing due to data quality problems">&mdash;</span>';
+      tr += '<td class="'+(st.dropped?"dropped ":"")+(c.num?"num":"")+'">'+out+'</td>';
+    });
+    if(!r.included){
+      tr += '<td colspan="'+(1+(S.showConf?1:0)+(S.reasons?1:0))+'">Not in the dataset</td></tr>';
+      return tr;
+    }
+    var pill = r.lowConf && S.humanReview ? '<span class="pill p-rev">Human review</span>'
+      : '<span class="pill '+(r.decision?"p-yes":"p-no")+'">'+(r.decision?"Yes":"No")+'</span>';
+    tr += '<td>'+pill+'</td>';
+    if(S.showConf) tr += '<td class="num">'+Math.round(r.conf*100)+'%</td>';
+    if(S.reasons){
+      var parts = r.contrib.map(function(c){ return (c.v>=0?"+":"\u2212")+" "+c.label; });
+      var txt = parts.length ? parts.join(", ") : "no features in use";
+      if(Math.abs(r.bias) > 0.03) txt += ' <b>&middot; affected by '+esc(r.sources.join(", "))+'</b>';
+      if(r.flipped) txt += " &middot; model error";
+      tr += '<td class="why">'+txt+'</td>';
+    }
+    return tr + "</tr>";
+  }).join("");
+}
+function bandLabel(c, v){
+  var t = normVal(c, v, false), i = Math.min(3, Math.floor(t*4));
+  var step = (c.max-c.min)/4;
+  return Math.round(c.min+step*i) + "\u2013" + Math.round(c.min+step*(i+1));
+}
+
+function renderMetrics(res, f){
+  var d = f[active], m = [], extra = "";
+  el("metTitle").textContent = "Measurements: " + PRINCIPLES.filter(function(p){return p.id===active;})[0].name;
+  var inc = res.filter(function(r){return r.included;});
+  if(active==="fair"){
+    m.push(["Disparate impact", f.fair.di.toFixed(2)]);
+    m.push(["Passes 80% rule", f.fair.di>=0.8?"Yes":"No"]);
+    m.push(["Auditing on", colById(S.auditAttr).label]);
+    m.push(["Historical skew", S.skew+"%"]);
+    var g = f.fair.groups, keys = Object.keys(g);
+    extra = '<div class="grp">' + keys.map(function(k){
+      var rate = g[k].n ? g[k].yes/g[k].n : 0;
+      return '<div>'+esc(k)+' <span style="color:var(--muted)">('+g[k].n+')</span></div>'
+        + '<div style="font-variant-numeric:tabular-nums">'+Math.round(rate*100)+'% selected</div>'
+        + '<div class="gb"><i class="b-'+(rate>=0.5?"pass":rate>=0.3?"warn":"fail")+'" style="display:block;height:100%;width:'+Math.round(rate*100)+'%"></i></div>';
+    }).join("") + '</div>';
+  } else if(active==="rel"){
+    m.push(["Wrong decisions", f.rel.errors+" / "+inc.length]);
+    m.push(["Below confidence line", f.rel.lowc]);
+    m.push(["Decided without a human", f.rel.unsafe]);
+    m.push(["Data quality issues", S.noise+"%"]);
+  } else if(active==="priv"){
+    m.push(["Direct identifiers visible", f.priv.ids]);
+    m.push(["k-anonymity", f.priv.k>=1e8?"n/a":f.priv.k]);
+    m.push(["Re-identification risk", f.priv.k<2?"High":f.priv.k<3?"Medium":"Low"]);
+    m.push(["Retention", S.retention+" months"]);
+  } else if(active==="incl"){
+    m.push(["Access features on", f.incl.onCount+" / 6"]);
+    m.push(["Representation", S.represent+"%"]);
+    m.push(["People left out", scen().rows.length - inc.length]);
+    m.push(["Text size", S.textSize+"px"]);
+  } else if(active==="trans"){
+    m.push(["Disclosures on", f.trans.onCount+" / 5"]);
+    m.push(["Reasons shown", S.reasons?"Yes":"No"]);
+    m.push(["Confidence shown", S.showConf?"Yes":"No"]);
+    m.push(["Limits published", S.limits?"Yes":"No"]);
+  } else {
+    m.push(["Named owner", S.owner.trim()||"None"]);
+    m.push(["Audit log", S.auditLog?"On":"Off"]);
+    m.push(["Appeal route", S.appeals?"Yes":"No"]);
+    m.push(["Governance items", d.find.filter(function(x){return x.ok;}).length+" / 5"]);
+  }
+  el("metrics").innerHTML = m.map(function(x){
+    return '<div class="met"><div class="k">'+esc(x[0])+'</div><div class="v">'+esc(x[1])+'</div></div>';
+  }).join("");
+  el("extra").innerHTML = extra;
+  el("findings").innerHTML = d.find.map(function(x){
+    return '<li><span class="mk '+(x.ok?"s-pass":"s-fail")+'">'+(x.ok?"\u2713":"\u2715")+'</span><span>'+x.t+'</span></li>';
+  }).join("");
+}
+
+function renderChrome(f){
+  var b = el("aiBanner");
+  if(S.disclose){ b.classList.remove("hide");
+    b.innerHTML = '<span>\u26A0</span><span><b>This decision is made by an automated system.</b> A '
+      + esc(scen().subject) + ' is scored by software, not by a person. You can ask for a human review.</span>';
+  } else b.classList.add("hide");
+  var l = el("limitations");
+  if(S.limits || S.modelCard){
+    l.classList.remove("hide");
+    var txt = "";
+    if(S.limits) txt += "<b>Known limits.</b> The model is "+S.accuracy+"% accurate on test data and was trained on "
+      + rows().length + " records. It has not been tested on groups that are missing from the data. It should not be the only basis for a final decision.<br>";
+    if(S.modelCard) txt += "<b>Model card.</b> Features in use: "
+      + scen().columns.filter(function(c){return cfg(c.id).feature && !cfg(c.id).dropped;}).map(function(c){return c.label;}).join(", ")
+      + ". Last fairness test: disparate impact " + f.fair.di.toFixed(2) + " on " + colById(S.auditAttr).label + ".";
+    l.innerHTML = txt;
+  } else l.classList.add("hide");
+  el("logCard").classList.toggle("hide", !S.auditLog);
+  if(S.auditLog){
+    el("log").innerHTML = log.length ? log.slice(-60).reverse().map(function(x){
+      return "<div>"+esc(x)+"</div>"; }).join("") : "<div>No changes recorded yet.</div>";
+  }
+}
+
+/* ---------------- panels ---------------- */
+function slider(k, label, min, max, step, hint, unit){
+  return '<div class="ctl"><div class="cname"><span>'+label+'</span><span class="cval" id="v_'+k+'">'+S[k]+(unit||"")+'</span></div>'
+    + '<input type="range" min="'+min+'" max="'+max+'" step="'+step+'" value="'+S[k]+'" data-set="'+k+'" data-unit="'+(unit||"")+'" aria-label="'+label+'">'
+    + (hint?'<div class="hint">'+hint+'</div>':'') + '</div>';
+}
+function toggle(k, label, hint){
+  return '<label class="sw"><input type="checkbox" data-tog="'+k+'" '+(S[k]?"checked":"")+'>'
+    + '<span>'+label+(hint?'<small>'+hint+'</small>':'')+'</span></label>';
+}
+function renderPanel(){
+  var p = PRINCIPLES.filter(function(x){return x.id===active;})[0], h = "";
+  h += '<h2>'+p.name+'</h2><p class="defn">'+p.defn+'</p>';
+  if(active==="fair"){
+    var prots = scen().columns.filter(function(c){return c.role==="prot";});
+    h += '<div class="ctl"><div class="cname"><span>Audit fairness on</span></div>'
+      + '<select id="auditSel" style="width:100%;margin-top:6px">'
+      + prots.map(function(c){return '<option value="'+c.id+'" '+(S.auditAttr===c.id?"selected":"")+'>'+esc(c.label)+'</option>';}).join("")
+      + '</select><div class="hint">Which group are we checking for discrimination?</div></div>';
+    h += slider("skew","Historical bias in training data",0,100,5,"Past decisions favoured one group. The model learns that pattern.","%");
+    h += '<div class="hint" style="padding-top:8px">Bias reaches the decision two ways: directly, through the F button on a protected column, and indirectly, through proxy columns like area or college that stand in for it. Turn both off in the table above.</div>';
+    h += '<div class="rowbtns"><button class="btn" data-act="noprot">Stop using protected columns</button>'
+      + '<button class="btn" data-act="noproxy">Stop using proxies</button></div>';
+  }
+  if(active==="rel"){
+    h += slider("accuracy","Model accuracy",60,99,1,"No model is ever 100% right.","%");
+    h += slider("noise","Messy or missing data",0,40,1,"Broken records make the model guess.","%");
+    h += slider("threshold","Confidence needed to decide alone",50,95,5,"Below this line the case should go to a person.","%");
+    h += toggle("humanReview","Send low-confidence cases to a human","The single most effective safeguard here.");
+    h += toggle("fallback","Have a fallback when the model fails","What happens if the system is down or the input is strange?");
+  }
+  if(active==="priv"){
+    h += '<div class="hint" style="padding-bottom:6px">Use the M button in the table to mask a column and the G button to generalise it into broad bands. Watch reliability as you do: hiding useful data also costs accuracy.</div>';
+    h += '<div class="rowbtns"><button class="btn" data-act="maskids">Mask all identifiers</button>'
+      + '<button class="btn" data-act="genquasi">Generalise quasi-identifiers</button></div>';
+    h += toggle("encrypt","Encrypt data at rest and in transit");
+    h += toggle("access","Restrict access to staff who need it");
+    h += toggle("consent","Tell people how their data will be used");
+    h += slider("retention","Keep records for",1,60,1,"Delete what you no longer need."," months");
+  }
+  if(active==="incl"){
+    h += toggle("captions","Text captions for speech and audio","A hearing-impaired user must get the same information.");
+    h += toggle("altText","Screen reader labels on every control");
+    h += toggle("keyboard","Works fully without a mouse");
+    h += toggle("plain","Plain language instead of jargon");
+    h += toggle("langs","More than one language");
+    h += toggle("lowband","Works on slow connections and old phones");
+    h += slider("textSize","Text size",14,22,1,"This one really resizes the page.","px");
+    h += toggle("contrast","Stronger contrast","Also applies to this page immediately.");
+    h += slider("represent","Under-represented groups in the dataset",0,100,5,"At low settings, rows vanish from the table. A model cannot serve people it has never seen.","%");
+  }
+  if(active==="trans"){
+    h += toggle("disclose","Tell people a machine is deciding","Adds a notice at the top of the page.");
+    h += toggle("reasons","Show the reasons for each decision","Adds a Why column to the table.");
+    h += toggle("showConf","Show how confident the model is","Adds a Confidence column.");
+    h += toggle("limits","State the known limitations");
+    h += toggle("modelCard","Publish a model card");
+  }
+  if(active==="acct"){
+    h += '<div class="ctl"><div class="cname"><span>Person answerable for outcomes</span></div>'
+      + '<input type="text" id="ownerIn" value="'+esc(S.owner)+'" placeholder="Name and role" style="width:100%;margin-top:6px"></div>';
+    h += toggle("auditLog","Keep an audit log","Records every change you make below the table.");
+    h += toggle("appeals","Give people a way to appeal to a human");
+    h += toggle("incident","Have an incident plan for harm caused");
+    h += toggle("review","Re-test the system on a schedule");
+  }
+  el("panel").innerHTML = h;
+  var sel = el("auditSel");
+  if(sel) sel.addEventListener("change", function(){ S.auditAttr = sel.value; note("Fairness audit attribute set to "+colById(sel.value).label); render(); });
+  var own = el("ownerIn");
+  if(own) own.addEventListener("input", function(){ S.owner = own.value; render(); });
+}
+
+/* ---------------- guide ---------------- */
+/* {SUBJ} {OUT} {PROT} {PROXY} {LEGIT} {IDS} are filled in from the scenario chosen at the top */
+var GUIDE = [
+ {p:"fair", title:"Fairness",
+  items:[
+   {c:"Audit fairness on", d:"care", b:"Compare all", w:"Chooses which group is compared. A system can be fair on one attribute and unfair on another, so check each."},
+   {c:"Historical bias in training data", d:"low", b:"Lower", w:"How much past decisions favoured one group. At 0 there is no bias to inherit. In real life you cannot drag this slider."},
+   {c:"Stop using protected columns", d:"tick", b:"Press", w:"Turns F off on {PROT} at once."},
+   {c:"Stop using proxies", d:"tick", b:"Press", w:"Turns F off on {PROXY}. Most students stop before this step and wonder why the gap survives."}
+  ]},
+ {p:"rel", title:"Reliability and safety",
+  items:[
+   {c:"Model accuracy", d:"high", b:"Higher", w:"How often the model is right. It never reaches 100, which is exactly why safeguards are needed."},
+   {c:"Messy or missing data", d:"low", b:"Lower", w:"Broken records show as a dash in the table and force the model to decide on less."},
+   {c:"Confidence needed to decide alone", d:"care", b:"Trade-off", w:"Raise it and fewer risky cases are automatic, but more land on staff. There is no single right number."},
+   {c:"Low-confidence cases go to a human", d:"tick", b:"Tick", w:"The strongest safeguard here. Without it, raising the confidence line changes nothing."},
+   {c:"Fallback when the model fails", d:"tick", b:"Tick", w:"What happens when the system is down. With none, the failure lands on the {SUBJ}."}
+  ]},
+ {p:"priv", title:"Privacy and security",
+  items:[
+   {c:"Mask all identifiers", d:"tick", b:"Press", w:"Hides {IDS}. Nothing is lost: a name never predicts {OUT}."},
+   {c:"Generalise quasi-identifiers", d:"tick", b:"Press", w:"Bands exact values so people stop being unique. Costs a little accuracy, which is the real price of privacy."},
+   {c:"Encrypt data", d:"tick", b:"Tick", w:"Protects the data if storage or network traffic is stolen."},
+   {c:"Restrict access", d:"tick", b:"Tick", w:"Most real leaks are ordinary insiders opening records they had no reason to open."},
+   {c:"Tell people how data is used", d:"tick", b:"Tick", w:"Data gathered for one purpose should not quietly become training data for another."},
+   {c:"Keep records for", d:"low", b:"Lower", w:"Data you no longer hold cannot leak. Over 24 months costs you points."}
+  ]},
+ {p:"incl", title:"Inclusiveness",
+  items:[
+   {c:"Captions for speech and audio", d:"tick", b:"Tick", w:"A hearing-impaired user must get the same information, not a reduced version."},
+   {c:"Screen reader labels", d:"tick", b:"Tick", w:"Without them a blind user hears only <em>button, button, button</em>."},
+   {c:"Works without a mouse", d:"tick", b:"Tick", w:"Serves people with motor disabilities, and anyone on a broken trackpad."},
+   {c:"Plain language", d:"tick", b:"Tick", w:"A decision nobody can read is a decision nobody can question."},
+   {c:"More than one language", d:"tick", b:"Tick", w:"English only excludes most of the people this system actually serves."},
+   {c:"Works on slow connections", d:"tick", b:"Tick", w:"Inclusiveness covers devices and bandwidth, not only disability."},
+   {c:"Text size", d:"high", b:"18 or more", w:"Really resizes this page. Try 22 and see how much of the design assumed small text."},
+   {c:"Stronger contrast", d:"tick", b:"Tick", w:"Applies here immediately, so you feel what low contrast costs a reader with weak vision."},
+   {c:"Under-represented groups in the dataset", d:"high", b:"Higher", w:"Drag it down and rows vanish from the table. <em>A group left out of the data is a group you cannot protect.</em>"}
+  ]},
+ {p:"trans", title:"Transparency",
+  items:[
+   {c:"Tell people a machine is deciding", d:"tick", b:"Tick", w:"Adds the notice at the top. Every {SUBJ} has a right to know the decision was automated."},
+   {c:"Show the reasons", d:"tick", b:"Tick", w:"Adds a Why column and flags any decision a protected or proxy column influenced."},
+   {c:"Show confidence", d:"tick", b:"Tick", w:"A 51% decision and a 99% decision should not look identical."},
+   {c:"State the limitations", d:"tick", b:"Tick", w:"Silence about limits is how a tool ends up used far outside its design."},
+   {c:"Publish a model card", d:"tick", b:"Tick", w:"A short public record of the features in use and the last fairness test."}
+  ]},
+ {p:"acct", title:"Accountability",
+  items:[
+   {c:"Person answerable", d:"tick", b:"Fill in", w:"Type a real name and role. <em>The team</em> is how responsibility disappears."},
+   {c:"Audit log", d:"tick", b:"Tick", w:"Opens a live log under the table recording every change you make."},
+   {c:"Appeal route", d:"tick", b:"Tick", w:"A {SUBJ} refused by the system must be able to reach a human who can overturn it."},
+   {c:"Incident plan", d:"tick", b:"Tick", w:"Decide what happens after harm before it happens, not during."},
+   {c:"Scheduled re-testing", d:"tick", b:"Tick", w:"A system fair at launch drifts as the world changes. One-off testing is not testing."}
+  ]}
+];
+var SCEN_NOTE = {
+ loan:{
+  fair:"Area is the trap here. Rural applicants in this data earn less, so Area carries the same signal as Category even after you switch Category off.",
+  rel:"A wrong rejection is invisible: the applicant is simply told no and never learns a model made the call.",
+  priv:"Income and credit score are the columns a neighbour would most like to see. Age plus Area alone can identify someone in a small branch.",
+  incl:"A loan form that only works on a fast connection quietly filters out exactly the rural applicants already doing worst here.",
+  trans:"Under lending rules a rejected applicant is usually entitled to a reason. The Why column is that reason.",
+  acct:"When a loan is wrongly refused, somebody in the branch has to be answerable. Name them."},
+ admit:{
+  fair:"School board and Home district do the work that Category used to do. A student from a village State-board school is marked down twice over.",
+  rel:"One wrong screening decision here changes a person's next three years. There is no second admission round for a model error.",
+  priv:"Applicants are often minors, so their marks, district and email deserve stronger protection than an ordinary customer record.",
+  incl:"A student with a vision disability is applying through the same form. If it has no screen reader labels, the barrier is the form, not the student.",
+  trans:"Publish the entrance and Class 12 weights. Admissions criteria kept secret are what parents go to court about.",
+  acct:"An appeal route matters most where a single cut-off decides a seat."},
+ hire:{
+  fair:"College tier is the proxy to watch, and Age is protected here: preferring 25-year-olds is age discrimination, not experience.",
+  rel:"Resume screening rejects silently and in bulk, so a 15% error rate is 15 good candidates nobody ever reviews.",
+  priv:"Candidates who are not hired should not sit in your database for years. Keep retention short.",
+  incl:"A deaf candidate cannot complete a video interview stage without captions, however strong the skill test score.",
+  trans:"Candidates increasingly ask whether a machine screened them. Answering honestly is cheaper than being found out.",
+  acct:"A named owner in HR, not the vendor who sold the tool, is the one answerable for rejections."},
+ triage:{
+  fair:"Insurance type is the sharpest proxy in this app: it converts wealth into priority. Language is protected, and Age here is genuinely relevant.",
+  rel:"This is the scenario where a wrong call can end a life, so the human review switch stops being a scoring detail.",
+  priv:"Health records are the most sensitive category in almost every privacy law. Patient ID and condition counts both need covering.",
+  incl:"A patient with a speech disability or no English must be triaged as accurately as anyone else. Captions and languages are clinical safety here.",
+  trans:"Tell the patient a tool ranked them and that a clinician can override it. Nobody should learn this later.",
+  acct:"Hospitals already have incident reporting. The AI tool belongs inside it, not beside it."}
+};
+function roleList(sc, role){
+  var r = sc.columns.filter(function(c){return c.role===role;}).map(function(c){return c.label;});
+  return r.length ? r.join(", ") : "none";
+}
+function fill(t){
+  var sc = scen();
+  return t.replace(/\{SUBJ\}/g, sc.subject).replace(/\{OUT\}/g, sc.outcome.toLowerCase())
+          .replace(/\{PROT\}/g, roleList(sc,"prot")).replace(/\{PROXY\}/g, roleList(sc,"proxy"))
+          .replace(/\{LEGIT\}/g, roleList(sc,"legit")).replace(/\{IDS\}/g, roleList(sc,"id"));
+}
+var LANES = [
+  {role:"legit", ops:{feature:1}},
+  {role:"prot",  ops:{}},
+  {role:"proxy", ops:{general:1}},
+  {role:"id",    ops:{masked:1}}
+];
+/* every sub-parameter, with text that depends on its current value */
+function T(tone, verdict, text){ return {tone:tone, v:verdict, t:text}; }
+var CONTROLS = {
+ fair:[
+  {k:"auditAttr", c:"Audit fairness on", f:function(){
+     return T("info", colById(S.auditAttr).label, "You are currently comparing {SUBJ}s grouped by "+colById(S.auditAttr).label.toLowerCase()
+      +". This choice changes the question, not the answer: switch it to each of {PROT} in turn, because a system can be clean on one and unfair on another.");}},
+  {k:"skew", c:"Historical bias in training data", f:function(v){
+     if(v<=15) return T("good", v+"%", "Almost no inherited bias. The model is learning merit rather than last decade's habits, and the remaining gap in the table is coming from the data itself, not from the model.");
+     if(v<=50) return T("warn", v+"%", "Some inherited bias. The model has partly learned who used to be preferred. You will see the gap widen slightly above the merit baseline.");
+     return T("bad", v+"%", "Heavy inherited bias. Past decisions favoured one group and the model is copying them faithfully. In real life this slider is fixed by history, which is why the column switches below are your actual defence.");}}
+ ],
+ rel:[
+  {k:"accuracy", c:"Model accuracy", f:function(v){
+     if(v>=89) return T("good", v+"%", "Strong, but still not perfect. Even here some {SUBJ}s get the wrong answer, so the human review switch below is what separates a safe system from a lucky one.");
+     if(v>=75) return T("warn", v+"%", "Ordinary real-world accuracy. Roughly one in five decisions is wrong somewhere in the table. Acceptable only with a human check behind it.");
+     return T("bad", v+"%", "Too weak to decide anything alone. At this level the model is barely better than guessing, and deploying it would be the unsafe choice regardless of everything else you switch on.");}},
+  {k:"noise", c:"Messy or missing data", f:function(v){
+     if(v<=8) return T("good", v+"%", "Clean data. Few records are missing values, so the model is deciding with the full picture.");
+     if(v<=20) return T("warn", v+"%", "Noticeable data quality problems. Look for dashes in the table: those {SUBJ}s were judged on incomplete information.");
+     return T("bad", v+"%", "The data is broken. Many records are missing a field, confidence drops across the board, and no amount of model tuning fixes a bad pipeline.");}},
+  {k:"threshold", c:"Confidence needed to decide alone", f:function(v){
+     if(v<=60) return T("bad", v+"%", "A low bar. Almost everything is decided automatically, including the borderline cases where the model is barely more sure than a coin toss.");
+     if(v<=80) return T("good", v+"%", "A sensible line. Clear cases flow through and doubtful ones stop for a person, provided human review below is actually switched on.");
+     return T("warn", v+"%", "Very cautious. Safe for the {SUBJ}, but so many cases go to a human that the automation saves little work. This is a real trade-off, not a wrong answer.");}},
+  {k:"humanReview", c:"Low-confidence cases go to a human", f:function(v){
+     return v ? T("good", "ticked", "Doubtful cases now show <em>Human review</em> instead of a yes or no. This is the single most effective safeguard available in this app.")
+              : T("bad", "not ticked", "Nothing is held back. Every borderline case is auto-decided, so raising the confidence line above achieves precisely nothing.");}},
+  {k:"fallback", c:"Fallback when the model fails", f:function(v){
+     return v ? T("good", "ticked", "There is a defined route when the system is down or the input is strange.")
+              : T("bad", "not ticked", "No plan for failure. When the model breaks, the consequence falls on the {SUBJ} standing in front of it.");}}
+ ],
+ priv:[
+  {k:"encrypt", c:"Encryption", f:function(v){
+     return v ? T("good", "ticked", "Data is unreadable to anyone who steals the storage or intercepts the traffic.")
+              : T("bad", "not ticked", "Records sit in plain text. One stolen laptop or one misconfigured server exposes every {SUBJ} in the table.");}},
+  {k:"access", c:"Restricted access", f:function(v){
+     return v ? T("good", "ticked", "Only staff with a reason can open these records.")
+              : T("bad", "not ticked", "Anyone in the organisation can browse the table. Most real privacy failures are ordinary insiders being curious, not hackers.");}},
+  {k:"consent", c:"People told how their data is used", f:function(v){
+     return v ? T("good", "ticked", "People know their information feeds this system.")
+              : T("bad", "not ticked", "Data collected for one purpose has quietly become training data for another, without anyone being asked.");}},
+  {k:"retention", c:"Keep records for", f:function(v){
+     if(v<=12) return T("good", v+" months", "Short retention. Data you no longer hold cannot leak, and old records rarely improve a current decision.");
+     if(v<=24) return T("warn", v+" months", "Defensible, and usually the most a rule or audit requirement needs.");
+     return T("bad", v+" months", "Years of personal records kept with no stated reason. Every extra month is extra exposure for no extra benefit.");}}
+ ],
+ incl:[
+  {k:"captions", c:"Captions for speech and audio", f:function(v){
+     return v ? T("good", "ticked", "A hearing-impaired {SUBJ} receives the same information as everyone else. This is the textbook example of the principle.")
+              : T("bad", "not ticked", "Anything spoken is lost to a deaf user. They are not getting a worse service, they are getting no service.");}},
+  {k:"altText", c:"Screen reader labels", f:function(v){
+     return v ? T("good", "ticked", "Every control and result is announced properly to a blind user.")
+              : T("bad", "not ticked", "A screen reader announces only <em>button, button, button</em>. The system is unusable without sight.");}},
+  {k:"keyboard", c:"Works without a mouse", f:function(v){
+     return v ? T("good", "ticked", "Usable with a keyboard alone, which serves motor disabilities and broken trackpads equally.")
+              : T("bad", "not ticked", "Anyone who cannot use a mouse is locked out, even though nothing about the task requires one.");}},
+  {k:"plain", c:"Plain language", f:function(v){
+     return v ? T("good", "ticked", "The {SUBJ} can read the outcome and question it.")
+              : T("bad", "not ticked", "Jargon hides the decision. A decision nobody can read is a decision nobody can challenge.");}},
+  {k:"langs", c:"More than one language", f:function(v){
+     return v ? T("good", "ticked", "Available beyond English, which is where most of these {SUBJ}s actually live.")
+              : T("bad", "not ticked", "English only. The people most likely to be misjudged by this system are the ones least likely to read the form.");}},
+  {k:"lowband", c:"Works on slow connections", f:function(v){
+     return v ? T("good", "ticked", "Usable on an old phone and a weak signal.")
+              : T("bad", "not ticked", "Heavy pages quietly filter out rural and low-income users, who are already the ones losing in this table.");}},
+  {k:"textSize", c:"Text size", f:function(v){
+     return v>=18 ? T("good", v+"px", "Comfortable for weaker eyesight. Notice how the whole page has re-laid itself around the larger type.")
+                  : T("warn", v+"px", "Small default. Drag it to 18 or more and watch this page change: that resize is what an older reader needs every time.");}},
+  {k:"contrast", c:"Stronger contrast", f:function(v){
+     return v ? T("good", "ticked", "Borders and labels are now clearly separated from the background.")
+              : T("warn", "not ticked", "Tick it and compare. The low-contrast version is what a reader with weak vision has to squint through.");}},
+  {k:"represent", c:"Under-represented groups in the dataset", f:function(v){
+     if(v>=80) return T("good", v+"%", "The dataset reflects the people it serves, so fairness can actually be tested on them.");
+     if(v>=40) return T("warn", v+"%", "Thin representation. Some rows are greyed out of the table, and any fairness claim about those groups rests on very few people.");
+     return T("bad", v+"%", "Most of these {SUBJ}s are missing from the data entirely. Fairness stops being measurable: <em>a group you left out is a group you cannot protect.</em>");}}
+ ],
+ trans:[
+  {k:"disclose", c:"Tell people a machine is deciding", f:function(v){
+     return v ? T("good", "ticked", "The notice is now at the top of the page. Every {SUBJ} knows an automated system decided.")
+              : T("bad", "not ticked", "People believe a person reviewed their case. They will find out eventually, and that is how trust is lost.");}},
+  {k:"reasons", c:"Show the reasons", f:function(v){
+     return v ? T("good", "ticked", "A Why column appears in the Lab, naming the top factors and flagging any decision a protected or proxy column influenced.")
+              : T("bad", "not ticked", "The outcome arrives with no explanation, so neither the {SUBJ} nor your own staff can spot a bad decision.");}},
+  {k:"showConf", c:"Show confidence", f:function(v){
+     return v ? T("good", "ticked", "Each decision now carries its confidence, so a 51% call is visibly different from a 99% one.")
+              : T("warn", "not ticked", "Every decision looks equally certain, including the ones the model was almost guessing at.");}},
+  {k:"limits", c:"State the limitations", f:function(v){
+     return v ? T("good", "ticked", "The limitations box now says what the model was and was not tested on.")
+              : T("bad", "not ticked", "Nothing warns anyone about what this system cannot do, which is how a tool ends up used far outside its design.");}},
+  {k:"modelCard", c:"Publish a model card", f:function(v){
+     return v ? T("good", "ticked", "The features in use and the last fairness result are on the record.")
+              : T("warn", "not ticked", "No public record of what the model uses, so no outsider can check your claims.");}}
+ ],
+ acct:[
+  {k:"owner", c:"Person answerable", f:function(v){
+     return (v && v.trim().length>1) ? T("good", v.trim(), "A named human carries the outcome. That name is what makes every other item here enforceable.")
+              : T("bad", "empty", "Nobody is named. When this system harms a {SUBJ}, responsibility spreads out until it disappears.");}},
+  {k:"auditLog", c:"Audit log", f:function(v){
+     return v ? T("good", "ticked", "A log has appeared under the Lab table recording every change you make, timestamped.")
+              : T("bad", "not ticked", "Changes leave no trace, so nobody can reconstruct what the system was doing on the day it went wrong.");}},
+  {k:"appeals", c:"Appeal route", f:function(v){
+     return v ? T("good", "ticked", "A {SUBJ} can reach a human who is able to overturn the decision.")
+              : T("bad", "not ticked", "The decision is final and unchallengeable, which is the difference between a tool and a verdict.");}},
+  {k:"incident", c:"Incident plan", f:function(v){
+     return v ? T("good", "ticked", "What happens after harm has been decided in advance.")
+              : T("bad", "not ticked", "No plan. The response to the first serious failure will be improvised in public.");}},
+  {k:"review", c:"Scheduled re-testing", f:function(v){
+     return v ? T("good", "ticked", "The system is re-tested on a schedule, which is the only kind of testing that survives contact with a changing world.")
+              : T("bad", "not ticked", "Tested once and never again. A system fair at launch drifts as the data and the people change.");}}
+ ]
+};
+/* live verdict on what the F, M, G and X buttons are currently set to */
+function columnVerdict(c){
+  var st = cfg(c.id), r = c.role;
+  if(r==="legit"){
+    if(st.dropped) return T("bad", "dropped", "You have deleted a column that genuinely predicts {OUT}. Reliability pays for this.");
+    if(!st.feature) return T("warn", "not used", "Relevant but switched off, so the model is deciding with less than it could.");
+    return T("good", st.general ? "in use, banded" : "in use", st.general
+      ? "Feeding the decision in broad bands: a little accuracy traded for privacy." : "Correctly feeding the decision.");
+  }
+  if(r==="prot"){
+    if(st.dropped) return T("bad", "deleted", "Deleting it does not remove discrimination, it removes your ability to detect it. Fairness becomes unmeasurable.");
+    if(st.feature) return T("bad", "used as a feature", "The model is discriminating directly on this attribute. Switch F off first.");
+    if(st.masked) return T("warn", "masked", "Hidden from view, which also blocks the fairness audit. Unmask it and just leave F off.");
+    return T("good", "kept for auditing", "Visible but not used to decide. This is exactly right: you need it to prove the system is fair.");
+  }
+  if(r==="proxy"){
+    if(st.dropped) return T("warn", "dropped", "Gone, so the leak is closed, but switching F off would have done the same without losing the record.");
+    if(st.feature) return T("bad", "used as a feature", "This is the proxy route. It looks like a neutral business fact while carrying the same bias as {PROT}.");
+    return T("good", "not used", "The indirect route into the decision is closed.");
+  }
+  if(r==="id"){
+    if(st.dropped || st.masked) return T("good", st.dropped?"dropped":"masked", "No longer identifies anyone, and nothing was lost: a name never predicted {OUT}.");
+    return T("bad", "exposed", "A direct identifier in plain sight. Press M.");
+  }
+  if(st.general) return T("good", "banded", "Generalised, so people are no longer unique on this column. This is what raises k-anonymity.");
+  return T("warn", "exact values", "Exact values here can single a person out even with the name removed.");
+}
+function biasFlow(){
+  var sc = scen();
+  var prot = sc.columns.filter(function(c){return c.role==="prot";})[0];
+  var proxy = sc.columns.filter(function(c){return c.role==="proxy";})[0];
+  var pn = prot ? prot.label : "Protected", xn = proxy ? proxy.label : "Proxy";
+  return '<svg class="flow" viewBox="0 0 560 190" role="img" aria-label="How bias reaches a decision">'
+  + '<rect x="8" y="14" width="150" height="40" rx="6" fill="var(--warn-soft)" stroke="var(--warn)"/>'
+  + '<text x="83" y="32" text-anchor="middle" font-weight="700">'+esc(pn)+'</text>'
+  + '<text x="83" y="45" text-anchor="middle" class="lab">protected attribute</text>'
+  + '<rect x="8" y="126" width="150" height="40" rx="6" fill="var(--accent-soft)" stroke="var(--accent)"/>'
+  + '<text x="83" y="144" text-anchor="middle" font-weight="700">'+esc(xn)+'</text>'
+  + '<text x="83" y="157" text-anchor="middle" class="lab">proxy column</text>'
+  + '<rect x="386" y="70" width="166" height="46" rx="6" fill="var(--surface2)" stroke="var(--ink)"/>'
+  + '<text x="469" y="90" text-anchor="middle" font-weight="700">'+esc(sc.outcome)+'</text>'
+  + '<text x="469" y="104" text-anchor="middle" class="lab">the decision</text>'
+  /* direct path, blocked */
+  + '<path d="M158 34 L300 34 L300 80 L380 80" fill="none" stroke="var(--fail)" stroke-width="2" stroke-dasharray="5 4"/>'
+  + '<path d="M380 80 l-9 -4 l0 8 z" fill="var(--fail)"/>'
+  + '<g><line x1="215" y1="22" x2="239" y2="46" stroke="var(--fail)" stroke-width="3"/>'
+  + '<line x1="239" y1="22" x2="215" y2="46" stroke="var(--fail)" stroke-width="3"/></g>'
+  + '<text x="253" y="26" class="lab">direct use: blocked the moment you switch F off</text>'
+  /* correlation */
+  + '<path d="M83 54 L83 126" fill="none" stroke="var(--muted)" stroke-width="1.5" stroke-dasharray="3 3"/>'
+  + '<path d="M83 126 l-4 -9 l8 0 z" fill="var(--muted)"/>'
+  + '<text x="92" y="94" class="lab">the two columns carry</text>'
+  + '<text x="92" y="105" class="lab">the same information</text>'
+  /* proxy path, open */
+  + '<path d="M158 146 L300 146 L300 106 L380 106" fill="none" stroke="var(--fail)" stroke-width="2.5"/>'
+  + '<path d="M380 106 l-9 -4 l0 8 z" fill="var(--fail)"/>'
+  + '<text x="253" y="166" class="lab" fill="var(--fail)">bias still arrives by this route until you switch F off here too</text>'
+  + '</svg>';
+}
+function renderGuide(){
+  var sc = scen(), n = SCEN_NOTE[scenKey] || {}, pr = PRINCIPLES.filter(function(x){return x.id===active;})[0];
+  var h = '<div class="card"><h2>' + pr.name + ' in ' + esc(sc.name) + '</h2>'
+    + '<p class="defn">' + pr.defn + '</p>'
+    + (n[active] ? '<div class="note"><b>In this scenario.</b> ' + fill(n[active]) + '</div>' : '')
+    + '<h3 style="margin-top:16px;font-size:.95rem">Your settings right now</h3>'
+    + '<p class="lead" style="margin:4px 0 8px">Move a slider or tick a box on the left and each line below rewrites itself.</p>';
+  (CONTROLS[active] || []).forEach(function(i){
+    var r = i.f(S[i.k]);
+    h += '<div class="grow"><span class="dot '+r.tone+'"></span><div><div class="gn">'+fill(i.c)
+      + ' <span class="gv '+r.tone+'">'+esc(fill(String(r.v)))+'</span></div>'
+      + '<div class="gd">'+fill(r.t)+'</div></div></div>';
+  });
+  h += '</div>';
+
+  if(active==="fair" || active==="priv"){
+    var roles = active==="fair" ? ["prot","proxy","legit"] : ["id","quasi","proxy","legit"];
+    var cols = sc.columns.filter(function(c){ return roles.indexOf(c.role) >= 0; });
+    h += '<div class="card"><h2>What the F, M, G and X buttons are doing</h2>'
+      + '<p class="defn">Read from the column headers in the Lab tab. Filled badges are switched on: green where that is right for this column, red where it is not.</p>';
+    cols.forEach(function(c){
+      var r = columnVerdict(c), st = cfg(c.id);
+      var rec = LANES.filter(function(l){return l.role===c.role;})[0];
+      var mini = ["feature","masked","general","dropped"].map(function(op){
+        var on = st[op], good = rec ? rec.ops[op] : (op==="general");
+        var cls = on ? (good ? "rec" : "avoid") : "";
+        return '<b class="'+cls+'" title="'+OP_LABELS[op]+(on?" — on":" — off")+'">'
+          + ({feature:"F",masked:"M",general:"G",dropped:"X"})[op] + '</b>';
+      }).join("");
+      h += '<div class="ccol"><div class="cn"><span class="dot '+r.tone+'" style="display:inline-block;margin:0 6px 0 0"></span>'
+        + esc(c.label) + ' <span class="gv '+r.tone+'">'+esc(r.v)+'</span></div>'
+        + '<span class="mini">'+mini+'</span>'
+        + '<div class="cd">'+fill(r.t)+'</div></div>';
+    });
+    h += '</div>';
+  }
+
+  if(active==="fair"){
+    h += '<div class="card"><h2>How bias reaches ' + esc(sc.outcome.toLowerCase()) + '</h2>'
+      + '<p class="defn">Two routes, and students almost always close only the first.</p>' + biasFlow()
+      + '<div class="trap" style="margin-top:14px"><h4>The commonest mistake</h4><p>Deleting the protected column with X feels like the fix. It makes bias unmeasurable rather than absent, and it keeps arriving through the proxy.</p></div></div>';
+    h += '<div class="card"><h2>The same column changes meaning between scenarios</h2>'
+      + '<p class="defn">Your row is highlighted. Change the scenario at the top to move it.</p>'
+      + '<div class="tablewrap"><table class="scen-tbl"><thead><tr><th>Scenario</th><th>Relevant, F on</th>'
+      + '<th>Protected, F off</th><th>Proxy, F off too</th><th>Identifiers, mask</th></tr></thead><tbody>'
+      + Object.keys(SCEN).map(function(k){
+          var x = SCEN[k];
+          return '<tr class="'+(k===scenKey?"cur":"")+'"><td><b>'+esc(x.name)+'</b></td><td>'+roleList(x,"legit")
+            +'</td><td>'+roleList(x,"prot")+'</td><td>'+roleList(x,"proxy")+'</td><td>'+roleList(x,"id")+'</td></tr>';
+        }).join("")
+      + '</tbody></table></div>'
+      + '<div class="note">Age is <b>protected</b> in resume screening, where preferring 25-year-olds is discrimination, and <b>relevant</b> in hospital triage, where it really does predict risk.</div></div>';
+  }
+  if(active==="priv"){
+    h += '<div class="card"><h2>Why masking the name is not enough</h2>'
+      + '<p class="defn">k-anonymity counts how many people share the same combination of ordinary columns. When k is 1, somebody is unique and can be recognised with no name at all.</p>'
+      + '<div class="trap"><h4>The opposite mistake</h4><p>Mask and generalise everything and privacy reaches 100 while reliability collapses. Press Over-restricted to watch both happen at once.</p></div></div>';
+  }
+  el("guideRight").innerHTML = h;
+}
+var view = "lab";
+function setView(v){
+  view = v;
+  el("vLab").setAttribute("aria-selected", v==="lab");
+  el("vGuide").setAttribute("aria-selected", v==="guide");
+  el("labRight").classList.toggle("hide", v!=="lab");
+  el("guideRight").classList.toggle("hide", v!=="guide");
+  if(v==="guide") renderGuide();
+}
+
+/* ---------------- events ---------------- */
+function note(msg){
+  if(suppressLog) return;
+  var d = new Date();
+  log.push(d.toTimeString().slice(0,8) + "  " + msg);
+}
+document.addEventListener("click", function(e){
+  var t = e.target.closest ? e.target.closest("[data-p],[data-op],[data-preset],[data-act]") : null;
+  if(!t) return;
+  if(t.dataset.p){ active = t.dataset.p; renderPanel(); render(); return; }
+  if(t.dataset.op){
+    var c = t.dataset.c, k = t.dataset.op, st = cfg(c);
+    st[k] = !st[k];
+    if(k==="dropped" && st.dropped){ st.feature = false; }
+    note(({feature:"Use as feature",masked:"Mask",general:"Generalise",dropped:"Drop"})[k]+" "+(st[k]?"on":"off")+" for column "+colById(c).label);
+    render(); return;
+  }
+  if(t.dataset.preset){ applyPreset(t.dataset.preset); return; }
+  if(t.dataset.act){ quick(t.dataset.act); return; }
+});
+document.addEventListener("input", function(e){
+  var k = e.target.dataset.set;
+  if(k){ S[k] = +e.target.value; var lab = el("v_"+k); if(lab) lab.textContent = S[k] + (e.target.dataset.unit||"");
+    note(k+" set to "+S[k]); render(); }
+});
+document.addEventListener("change", function(e){
+  var k = e.target.dataset.tog;
+  if(k){ S[k] = e.target.checked; note(k+" turned "+(S[k]?"on":"off")); render(); }
+});
+function quick(a){
+  var sc = scen();
+  if(a==="noprot") sc.columns.forEach(function(c){ if(c.role==="prot") cfg(c.id).feature = false; });
+  if(a==="noproxy") sc.columns.forEach(function(c){ if(c.role==="proxy") cfg(c.id).feature = false; });
+  if(a==="maskids") sc.columns.forEach(function(c){ if(c.role==="id") cfg(c.id).masked = true; });
+  if(a==="genquasi") quasiCols().forEach(function(c){ cfg(c.id).general = true; });
+  note("Quick action: "+a);
+  render();
+}
+function presetState(name){
+  var cur = S;
+  S = defaultState(); initCols(S, scen());
+  if(name==="careless"){
+    S.skew = 90; S.accuracy = 72; S.noise = 22; S.represent = 15; S.retention = 60;
+    scen().columns.forEach(function(c){ if(c.role==="prot"||c.role==="proxy") cfg(c.id).feature = true; });
+  }
+  if(name==="locked"){
+    S.skew = 0; S.represent = 100; S.encrypt = true; S.access = true; S.consent = true; S.retention = 6;
+    scen().columns.forEach(function(c){ if(c.role!=="legit") cfg(c.id).dropped = true; });
+    scen().columns.filter(function(c){return c.role==="legit";}).forEach(function(c, i){ if(i>0) cfg(c.id).dropped = true; });
+    S.accuracy = 74;
+  }
+  if(name==="balanced"){
+    S.skew = 20; S.accuracy = 92; S.noise = 5; S.threshold = 70; S.humanReview = true; S.fallback = true;
+    S.encrypt = true; S.access = true; S.consent = true; S.retention = 18;
+    S.captions = S.altText = S.keyboard = S.plain = S.langs = S.lowband = true;
+    S.represent = 100;
+    S.disclose = S.reasons = S.showConf = S.limits = S.modelCard = true;
+    S.owner = "R. Nair, Product Lead"; S.auditLog = true; S.appeals = true; S.incident = true; S.review = true;
+    scen().columns.forEach(function(c){
+      if(c.role==="prot"||c.role==="proxy") cfg(c.id).feature = false;
+      if(c.role==="id") cfg(c.id).masked = true;
+      if(c.role==="quasi") cfg(c.id).general = true;
+    });
+  }
+  var built = S; S = cur; return built;
+}
+function applyPreset(name){
+  suppressLog = true;
+  var keep = S.textSize, kc = S.contrast, attr = S.auditAttr;
+  var built = presetState(name);
+  built.textSize = keep; built.contrast = kc; built.auditAttr = attr;
+  S = built;
+  suppressLog = false;
+  log.push(new Date().toTimeString().slice(0,8)+"  Preset applied: "+name);
+  renderPanel(); render();
+}
+
+/* ---------------- compare with a preset ---------------- */
+var SETTING_LABELS = {
+  skew:"Historical bias in training data", accuracy:"Model accuracy", noise:"Messy or missing data",
+  threshold:"Confidence needed to decide alone", humanReview:"Low-confidence cases go to a human",
+  fallback:"Fallback when the model fails", encrypt:"Encryption", access:"Restricted access",
+  consent:"People told how their data is used", retention:"Retention in months",
+  captions:"Captions for speech and audio", altText:"Screen reader labels", keyboard:"Works without a mouse",
+  plain:"Plain language", langs:"More than one language", lowband:"Works on slow connections",
+  represent:"Under-represented groups included", disclose:"Tells people a machine is deciding",
+  reasons:"Shows reasons for each decision", showConf:"Shows confidence", limits:"States its limitations",
+  modelCard:"Publishes a model card", owner:"Named owner", auditLog:"Audit log",
+  appeals:"Appeal route", incident:"Incident plan", review:"Scheduled re-testing"
+};
+var OP_LABELS = {feature:"used as a feature", masked:"masked", general:"generalised", dropped:"dropped"};
+function pad(t, n){ t = String(t); while(t.length < n) t += " "; return t; }
+function fmtVal(v){
+  if(v === true) return "on"; if(v === false) return "off";
+  if(typeof v === "string") return v.trim() ? v.trim() : "none";
+  return String(v);
+}
+function compareWith(name){
+  var b = presetState(name), lines = [], k;
+  for(k in SETTING_LABELS){
+    if(fmtVal(S[k]) !== fmtVal(b[k]))
+      lines.push("  " + pad(SETTING_LABELS[k], 40) + " yours: " + pad(fmtVal(S[k]), 10) + " preset: " + fmtVal(b[k]));
+  }
+  var colLines = [];
+  scen().columns.forEach(function(c){
+    var mine = S.cols[c.id], theirs = b.cols[c.id], diffs = [];
+    ["feature","masked","general","dropped"].forEach(function(op){
+      if(mine[op] !== theirs[op]) diffs.push(pad(c.label + ", " + OP_LABELS[op], 40) + " yours: " + pad(fmtVal(mine[op]), 10) + " preset: " + fmtVal(theirs[op]));
+    });
+    if(diffs.length) colLines.push("  " + diffs.join("\n  "));
+  });
+  var nCol = 0;
+  colLines.forEach(function(x){ nCol += x.split("\n").length; });
+  var out = ["DIFFERENCES BETWEEN YOUR SETTINGS AND THE " + name.toUpperCase() + " PRESET", "",
+    nCol + " column difference(s), " + lines.length + " slider or switch difference(s). Scroll for all of them.", ""];
+  out.push("COLUMN OPERATIONS (F, M, G, X)");
+  out.push(colLines.length ? colLines.join("\n") : "  No differences.");
+  out.push("");
+  out.push("SLIDERS AND SWITCHES");
+  out.push(lines.length ? lines.join("\n") : "  No differences.");
+  out.push("");
+  if(!colLines.length && !lines.length)
+    out.push("Everything matches. Any score difference left would be a bug, so please report it.");
+  else
+    out.push("Column operations alone only move Fairness and Privacy. The sliders and switches above carry Reliability, Inclusiveness, Transparency and Accountability.");
+  out.push("");
+  out.push("Note: the fairness audit attribute (currently " + colById(S.auditAttr).label + ") is yours to choose and is left untouched by presets. Auditing a different attribute gives a different fairness score on the same settings.");
+  return out.join("\n");
+}
+
+/* scenario */
+var selScen = el("scenario");
+selScen.innerHTML = Object.keys(SCEN).map(function(k){ return '<option value="'+k+'">'+esc(SCEN[k].name)+'</option>'; }).join("");
+selScen.addEventListener("change", function(){
+  scenKey = selScen.value;
+  var owner = S.owner, ts = S.textSize, ct = S.contrast;
+  var old = S;
+  S = defaultState(); initCols(S, scen());
+  ["skew","accuracy","noise","threshold","humanReview","fallback","encrypt","access","retention","consent",
+   "captions","altText","keyboard","plain","langs","lowband","represent","disclose","reasons","showConf",
+   "limits","modelCard","auditLog","appeals","incident","review"].forEach(function(k){ S[k] = old[k]; });
+  S.owner = owner; S.textSize = ts; S.contrast = ct;
+  pickWorstAttr();
+  note("Scenario changed to "+scen().name);
+  renderPanel(); render();
+});
+
+el("vLab").addEventListener("click", function(){ setView("lab"); });
+el("vGuide").addEventListener("click", function(){ setView("guide"); });
+el("themeBtn").addEventListener("click", function(){
+  var cur = document.documentElement.getAttribute("data-theme");
+  var next = cur === "dark" ? "light" : "dark";
+  document.documentElement.setAttribute("data-theme", next);
+});
+
+/* audit report */
+el("auditBtn").addEventListener("click", function(){
+  var out = render(), f = out.f;
+  var avg = Math.round(PRINCIPLES.reduce(function(a,p){return a+f[p.id].score;},0)/6);
+  var lines = [];
+  lines.push("RESPONSIBLE AI AUDIT");
+  lines.push("System: " + scen().name);
+  lines.push("Date: " + new Date().toLocaleString());
+  lines.push("Reviewed by: " + (S.owner.trim() || "unnamed"));
+  lines.push("Overall readiness: " + avg + "/100");
+  lines.push("");
+  PRINCIPLES.forEach(function(p){
+    var d = f[p.id];
+    lines.push(p.name.toUpperCase() + " - " + d.score + "/100 - " + bandWord(d.score));
+    d.find.forEach(function(x){ lines.push("  [" + (x.ok?"ok ":"gap") + "] " + x.t.replace(/<[^>]+>/g,"")); });
+    lines.push("");
+  });
+  var dropped = scen().columns.filter(function(c){return cfg(c.id).dropped;}).map(function(c){return c.label;});
+  lines.push("Columns dropped: " + (dropped.length?dropped.join(", "):"none"));
+  lines.push("Features in use: " + scen().columns.filter(function(c){return cfg(c.id).feature && !cfg(c.id).dropped;}).map(function(c){return c.label;}).join(", "));
+  el("sheetTitle").textContent = "Audit report";
+  el("report").textContent = lines.join("\n");
+  el("overlay").classList.remove("hide");
+});
+el("diffBtn").addEventListener("click", function(){
+  el("sheetTitle").textContent = "Compare with Balanced";
+  el("report").textContent = compareWith("balanced");
+  el("overlay").classList.remove("hide");
+});
+el("closeBtn").addEventListener("click", function(){ el("overlay").classList.add("hide"); });
+el("overlay").addEventListener("click", function(e){ if(e.target === el("overlay")) el("overlay").classList.add("hide"); });
+el("copyBtn").addEventListener("click", function(){
+  var txt = el("report").textContent;
+  if(navigator.clipboard){ navigator.clipboard.writeText(txt).then(function(){ el("copyBtn").textContent = "Copied"; setTimeout(function(){ el("copyBtn").textContent = "Copy report"; }, 1500); }); }
+});
+document.addEventListener("keydown", function(e){ if(e.key === "Escape") el("overlay").classList.add("hide"); });
+
+/* boot */
+scenKey = "loan";
+S = defaultState(); initCols(S, scen());
+pickWorstAttr();
+log.push(new Date().toTimeString().slice(0,8)+"  Session started on the default, unaudited settings.");
+renderPanel(); render();
+</script>
+</body>
+</html>

@@ -1,0 +1,625 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Classification metrics — step by step</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#EDF0F3; --card:#FFFFFF; --soft:#F6F8FA;
+    --ink:#0F1720; --ink2:#4A5661; --ink3:#7A8691;
+    --line:#DCE2E8; --line2:#C2CBD3;
+    --ok:#0E7A62; --okbg:#E4F1ED; --okink:#0A4C3E;
+    --bad:#BE4034; --badbg:#FBE9E7; --badink:#7C2A22;
+    --dial:#B0730B; --dialbg:#FCF3E1;
+    --blue:#1B5A9C; --bluebg:#E9F0F8;
+    --sans:"IBM Plex Sans",system-ui,sans-serif;
+    --mono:"IBM Plex Mono",ui-monospace,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.65}
+  .page{max-width:1240px;margin:0 auto;padding:22px 20px 60px}
+  header{margin-bottom:20px}
+  h1{font-size:27px;font-weight:600;letter-spacing:-.01em;margin:0 0 6px}
+  header p{margin:0;color:var(--ink2);font-size:15px;max-width:70ch}
+
+  .layout{display:grid;grid-template-columns:430px 1fr;gap:22px;align-items:start}
+
+  /* ---------- sticky left panel ---------- */
+  .panel{position:sticky;top:16px;max-height:calc(100vh - 32px);overflow-y:auto;
+         background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}
+  .panel-lab{font-family:var(--mono);font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink3);margin:0 0 5px}
+  select{width:100%;font-family:var(--sans);font-size:14.5px;padding:8px 10px;border:1px solid var(--line2);
+         border-radius:8px;background:var(--soft);color:var(--ink);cursor:pointer}
+  svg{display:block;width:100%;height:auto;touch-action:none}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--ink2);margin:2px 0 10px}
+  .legend span{display:flex;align-items:center;gap:5px}
+  .sw{width:11px;height:11px;border-radius:3px;display:inline-block}
+  input[type=range]{width:100%;accent-color:var(--dial);height:26px;margin:0}
+  .ends{display:flex;justify-content:space-between;font-size:11.5px;color:var(--ink3);margin-top:-4px}
+  .dialnote{background:var(--dialbg);border:1px solid #EFDCB2;border-radius:8px;padding:8px 10px;font-size:12.5px;color:#6B4705;margin:9px 0 0}
+
+  .matrix{display:grid;grid-template-columns:58px 1fr 1fr;gap:5px;margin-top:6px}
+  .mh{font-size:10.5px;font-family:var(--mono);letter-spacing:.05em;text-transform:uppercase;color:var(--ink3);align-self:end;padding-bottom:3px;line-height:1.3}
+  .ms{font-size:11.5px;color:var(--ink2);display:flex;align-items:center;justify-content:flex-end;text-align:right;line-height:1.25}
+  .mc{border-radius:8px;padding:8px 9px;border:1px solid}
+  .mc.g{background:var(--okbg);border-color:#BFDED5;color:var(--okink)}
+  .mc.r{background:var(--badbg);border-color:#F0CFCB;color:var(--badink)}
+  .mc .t{font-family:var(--mono);font-size:10px;letter-spacing:.07em;text-transform:uppercase}
+  .mc .n{font-family:var(--mono);font-size:19px;font-weight:600;line-height:1.3}
+  .mc .s{font-size:11.5px;line-height:1.3}
+
+  table.mt{width:100%;border-collapse:collapse;margin-top:4px}
+  table.mt td{padding:5px 0;border-top:1px solid var(--line);font-size:13.5px}
+  table.mt tr:first-child td{border-top:0}
+  table.mt td.v{text-align:right;font-family:var(--mono);font-weight:600;font-size:14px}
+  table.mt tr.key td{background:var(--dialbg);color:#6B4705}
+  table.mt tr.key td:first-child{padding-left:7px;border-radius:6px 0 0 6px}
+  table.mt tr.key td:last-child{padding-right:7px;border-radius:0 6px 6px 0}
+  .tag{font-family:var(--mono);font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;background:var(--dial);color:#fff;border-radius:99px;padding:1px 6px;margin-left:6px}
+  hr{border:0;border-top:1px solid var(--line);margin:14px 0}
+
+  /* ---------- right column ---------- */
+  .sec{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px 22px;margin-bottom:16px}
+  .sec h2{font-size:19px;font-weight:600;margin:0 0 3px;letter-spacing:-.005em}
+  .sec .kicker{font-family:var(--mono);font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink3);margin:0 0 9px}
+  .sec p{margin:0 0 11px}
+  .sec p:last-child{margin-bottom:0}
+  .sec h3{font-size:15px;font-weight:600;margin:18px 0 6px}
+  b{font-weight:500}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:13px;margin-top:4px}
+  .box{border-left:3px solid var(--line2);padding:2px 0 2px 12px}
+  .box.a{border-left-color:var(--bad)} .box.b{border-left-color:var(--dial)}
+  .box h4{margin:0 0 2px;font-size:11px;font-family:var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--ink3);font-weight:500}
+  .box p{margin:0;font-size:14px;color:var(--ink2)}
+
+  .calc{background:var(--soft);border:1px solid var(--line);border-radius:9px;padding:13px 15px;margin:0 0 14px}
+  .calc .nm{font-size:15px;font-weight:600;margin-bottom:7px}
+  .calc .q{font-size:13.5px;color:var(--ink2);margin-bottom:9px}
+  .calc .line{font-family:var(--mono);font-size:13px;color:var(--ink2);padding:1px 0}
+  .calc .line.res{color:var(--ink);font-weight:600;font-size:14px;padding-top:3px}
+  .calc .plain{font-size:13.5px;color:var(--ink2);margin-top:8px;padding-top:8px;border-top:1px dashed var(--line2)}
+  .calc.star{background:var(--dialbg);border-color:#EFDCB2}
+  .calc.star .plain{border-top-color:#E3CB9E}
+  .hl{margin-top:10px;display:grid;grid-template-columns:auto 1fr;gap:5px 11px;font-size:13.5px;align-items:start}
+  .hl .k{font-family:var(--mono);font-size:10px;letter-spacing:.07em;text-transform:uppercase;padding-top:4px;white-space:nowrap;font-weight:500}
+  .hl .k.h{color:var(--ok)} .hl .k.l{color:var(--bad)}
+  .hl .t{color:var(--ink2);line-height:1.55}
+  .step{font-family:var(--mono);font-size:11px;color:var(--ink3);letter-spacing:.04em;text-transform:uppercase;margin:9px 0 2px}
+  .step:first-of-type{margin-top:0}
+
+  .verdict{border-radius:10px;padding:14px 16px;border:1px solid}
+  .verdict.good{background:var(--okbg);border-color:#BFDED5;color:var(--okink)}
+  .verdict.warn{background:var(--dialbg);border-color:#EFDCB2;color:#684504}
+  .verdict.bad{background:var(--badbg);border-color:#F0CFCB;color:var(--badink)}
+  .verdict h4{margin:0 0 4px;font-size:14.5px;font-weight:600}
+  .verdict p{margin:0;font-size:14px}
+  .stat{background:var(--soft);border:1px solid var(--line);border-radius:9px;padding:11px 13px}
+  .stat .l{font-family:var(--mono);font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink3)}
+  .stat .b{font-family:var(--mono);font-size:22px;font-weight:600;line-height:1.3}
+  .stat .n{font-size:12.5px;color:var(--ink2)}
+  code{font-family:var(--mono);font-size:.9em;background:var(--soft);border:1px solid var(--line);border-radius:4px;padding:1px 4px}
+  :focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+  footer{color:var(--ink3);font-size:12.5px;margin-top:6px}
+
+  @media (max-width:980px){
+    .layout{grid-template-columns:1fr}
+    .panel{position:static;max-height:none;overflow:visible}
+    .two{grid-template-columns:1fr}
+    h1{font-size:23px}
+  }
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="page">
+  <header>
+    <h1>One dial, six situations</h1>
+    <p>A classifier does not really say yes or no. It gives each case a score, and then a dial decides how high that score must be before we call it a yes. Move the dial on the left. Every number on this page changes, and the working is shown for each one.</p>
+  </header>
+
+  <div class="layout">
+
+    <!-- ============ STICKY LEFT ============ -->
+    <div class="panel">
+      <p class="panel-lab">Situation</p>
+      <select id="pick" aria-label="Choose a situation"></select>
+
+      <hr>
+      <p class="panel-lab">The dial</p>
+      <svg id="chart" viewBox="0 0 680 320" role="img" aria-labelledby="chart-t">
+        <title id="chart-t">Two groups of cases spread out by model score, cut by a movable dial</title>
+      </svg>
+      <div class="legend">
+        <span><i class="sw" style="background:#0E7A62"></i> model was right</span>
+        <span><i class="sw" style="background:#BE4034"></i> model was wrong</span>
+        <button id="scaleBtn" onclick="toggleScale()" style="margin-left:auto;border:1px solid var(--line2);background:var(--soft);border-radius:6px;font-family:var(--mono);font-size:10.5px;padding:3px 7px;cursor:pointer;color:var(--ink2)">show true group sizes</button>
+      </div>
+      <input type="range" id="th" min="0" max="1000" value="500" aria-label="Move the dial">
+      <div class="ends"><span>← say yes to almost everyone</span><span>say yes to almost nobody →</span></div>
+      <p class="dialnote" id="dialnote"></p>
+
+      <hr>
+      <p class="panel-lab">The four counts</p>
+      <div class="matrix" id="matrix"></div>
+
+      <hr>
+      <p class="panel-lab">The numbers</p>
+      <table class="mt" id="mt"></table>
+    </div>
+
+    <!-- ============ SCROLLING RIGHT ============ -->
+    <div>
+
+      <div class="sec">
+        <p class="kicker">Start here</p>
+        <h2>What is that picture on the left?</h2>
+        <p>It shows two groups of cases, side by side, on the same horizontal line.</p>
+        <p>The <b>top hump</b> is the group where the answer is really <b id="w-neg">no</b>. The <b>bottom hump</b> is the group where the answer is really <b id="w-pos">yes</b>. The width of a hump shows how many cases sit at each score.</p>
+        <p>Left to right is <b>the score the model gave</b>. Low score on the left, high score on the right. The bottom hump sits further right because the model does give higher scores to the real yes cases. But the two humps <b>overlap</b>. That overlap is the whole problem. Some no cases get a high score and some yes cases get a low score, and no dial position can separate them cleanly.</p>
+      </div>
+
+      <div class="sec">
+        <p class="kicker">Next</p>
+        <h2>What is the dial doing?</h2>
+        <p>The orange line is the dial. The rule is simple:</p>
+        <p>→ Everything to the <b>right</b> of the line, the model calls <b>yes</b>.<br>→ Everything to the <b>left</b> of the line, the model calls <b>no</b>.</p>
+        <p>So the dial cuts each hump into two pieces, giving four pieces in total. Those four pieces are the four counts in the box below the chart. <b>Green means the model was right about that piece. Red means it was wrong.</b></p>
+        <p>Slide the dial left and the yes side grows: you catch more real cases, but you also wrongly flag more cases that were fine. Slide it right and the opposite happens. You cannot improve both sides at once. That is the trade-off every metric below is trying to measure.</p>
+      </div>
+
+      <div class="sec">
+        <p class="kicker">The situation</p>
+        <h2 id="s-name"></h2>
+        <p id="s-setup"></p>
+        <div class="two">
+          <div class="box a"><h4>If we miss a real case</h4><p id="s-miss"></p></div>
+          <div class="box b"><h4>If we raise a false alarm</h4><p id="s-alarm"></p></div>
+        </div>
+      </div>
+
+      <div class="sec">
+        <p class="kicker">The four counts</p>
+        <h2>What the four boxes mean here</h2>
+        <p id="cells-intro"></p>
+        <div id="cells-list"></div>
+        <p style="margin-top:12px">These four numbers always add up to the full group, <b id="cells-total"></b>. Every metric below is just these four numbers divided in a different way.</p>
+      </div>
+
+      <div class="sec">
+        <p class="kicker">The working</p>
+        <h2>How each number is calculated</h2>
+        <p style="margin-bottom:16px">Each block shows the formula, the same formula with your current counts filled in, the answer, and what it means in plain words. The last two lines of each block tell you what a <b>high</b> or a <b>low</b> value means <i>for this particular situation</i> — because the same score can be good news in one situation and a warning in another.</p>
+        <div id="calcs"></div>
+      </div>
+
+      <div class="sec">
+        <p class="kicker">Warning</p>
+        <h2>Why accuracy can lie to you</h2>
+        <p>Imagine a model that does no work at all. It just says <b id="lazy-says">no</b> to every single case, without looking. Here is what it would score:</p>
+        <div class="two" style="margin:12px 0">
+          <div class="stat"><div class="l">Your model</div><div class="b" id="acc-a"></div><div class="n" id="acc-an"></div></div>
+          <div class="stat"><div class="l">The lazy model</div><div class="b" id="acc-b"></div><div class="n" id="acc-bn"></div></div>
+        </div>
+        <p id="trap-say"></p>
+        <p>This is why nobody reports accuracy on its own. You always check the lazy score first. It is often called the <b>null error rate</b>.</p>
+
+        <h3>Cohen's kappa fixes this</h3>
+        <p>Kappa rescales accuracy so that pure guessing scores 0 and perfect scores 1. Here is the working:</p>
+        <div class="calc" id="kappa-calc"></div>
+      </div>
+
+      <div class="sec">
+        <p class="kicker">The last one</p>
+        <h2>AUC: the number the dial cannot change</h2>
+        <p>Every metric so far depends on where you put the dial. Move it and they all move. AUC is different. It ignores the dial completely.</p>
+        <p>Here is how to read it. Pick one real <b id="auc-p">yes</b> case and one real <b id="auc-n">no</b> case at random. <b>AUC is the chance that the model gave the yes case the higher score.</b> It measures whether the model can put cases in the right order, not whether you chose a good cut-off.</p>
+        <div class="two" style="margin:12px 0">
+          <div>
+            <svg id="roc" viewBox="0 0 300 300" role="img" aria-labelledby="roc-t"><title id="roc-t">ROC curve</title></svg>
+          </div>
+          <div>
+            <div class="stat" style="margin-bottom:11px"><div class="l">AUC here</div><div class="b" id="auc-v"></div><div class="n">every dial position gives one dot on this curve</div></div>
+            <p style="font-size:13.5px;color:var(--ink2);margin:0">The curve is drawn by trying every dial position and plotting the result. Your current position is the orange dot. The dashed line is a model that guesses randomly.</p>
+            <p style="font-size:13.5px;color:var(--ink2);margin:9px 0 0"><b>0.5</b> means useless. <b>0.7 to 0.8</b> is a normal real model. <b>Above 0.99</b> usually means you made a mistake and the answer leaked into the inputs.</p>
+          </div>
+        </div>
+        <div id="auc-hl" style="margin-bottom:13px"></div>
+        <p style="font-size:13.5px;color:var(--ink3);margin:0">Note: you cannot work AUC out from the four counts. Those four counts only describe one dial position. AUC needs the score of every single case.</p>
+      </div>
+
+      <div class="sec">
+        <p class="kicker">Verdict</p>
+        <h2>Is this dial position a good choice?</h2>
+        <div id="verdict"></div>
+        <p style="margin-top:13px" id="advice"></p>
+      </div>
+
+      <footer>The two humps are a simple bell-curve model, which is the standard way this is taught. Counts are rounded so the four boxes always add up exactly.</footer>
+    </div>
+  </div>
+</div>
+
+<script>
+const SCEN=[
+ {menu:'Cancer screening in a hospital',
+  name:'Cancer screening programme',
+  n:1000,prev:0.05,d:2.2,t0:0.85,
+  unit:'women screened',pos:'has cancer',neg:'is healthy',posShort:'cancer',negShort:'healthy',
+  yesWord:'call her back for tests',noWord:'send her home',
+  setup:'A hospital screens 1,000 women. About 50 of them really do have a tumour. The model reads each scan and gives it a risk score. We must decide how high that score must be before we call the woman back for more tests.',
+  miss:'A real tumour is not found. It keeps growing for another year. Treatment becomes much harder.',
+  alarm:'A healthy woman gets a frightening letter, waits three weeks, and has a needle test she never needed.',
+  key:'rec',
+  advice:'Here a miss can cost a life, and a false alarm only costs worry and money. So recall is the number this programme is judged on. Real screening programmes accept very poor precision on purpose.',
+  verdict:m=>m.rec>=0.90
+    ?['good','Good choice for screening','You are finding '+pc(m.rec)+' of the real tumours. Only '+m.FN+' were missed. Precision is only '+pc(m.prec)+', which looks bad, but that is normal and accepted for screening.']
+    :m.rec>=0.75?['warn','A bit too strict','You are missing '+m.FN+' real tumours out of '+m.P+'. Precision went up to '+pc(m.prec)+', but a screening programme would not accept losing those cases. Move the dial left.']
+    :['bad','This setting misses cancer','Only '+pc(m.rec)+' of tumours found. '+m.FN+' women are told they are fine when they are not. Notice accuracy still reads '+pc(m.acc)+'. That is exactly how a bad screening tool hides.']},
+
+ {menu:'Email spam filter',
+  name:'Email spam filter',
+  n:1000,prev:0.45,d:3.2,t0:2.5,
+  unit:'emails',pos:'is spam',neg:'is real mail',posShort:'spam',negShort:'real mail',
+  yesWord:'move it to the junk folder',noWord:'let it into the inbox',
+  setup:'1,000 emails arrive overnight. About 450 of them are spam. The filter gives each email a spam score and must decide which ones go to the junk folder, without asking you.',
+  miss:'One piece of junk reaches your inbox. You delete it in one second and forget about it.',
+  alarm:'A job offer or an exam result goes to the junk folder and you find it three weeks later.',
+  key:'prec',
+  advice:'The two mistakes are very unequal here. One is a tiny annoyance, the other can cost you a job. So precision matters far more than recall. A real filter would rather let ten spam emails through than lose one real email.',
+  verdict:m=>m.prec>=0.99
+    ?['good','This is the right instinct','Precision is '+pc1(m.prec)+'. Only '+m.FP+' real emails were wrongly junked. You let '+m.FN+' spam emails through to buy that, and it is a good trade.']
+    :m.prec>=0.97?['warn','Close, but still losing real mail',m.FP+' real emails are sitting in the junk folder. Across millions of users that is a lot of lost mail. Move the dial a little further right.']
+    :['bad','You are deleting real mail','Precision is only '+pc(m.prec)+'. '+m.FP+' real emails were junked. Recall looks great at '+pc(m.rec)+' and that is the trap. On this problem recall is almost worthless to you.']},
+
+ {menu:'Credit card fraud (very rare cases)',
+  name:'Credit card fraud detection',
+  n:10000,prev:0.003,d:2.4,t0:2.7,
+  unit:'transactions',pos:'is fraud',neg:'is a normal payment',posShort:'fraud',negShort:'normal',
+  yesWord:'block the payment',noWord:'let the payment through',
+  setup:'10,000 card payments clear in one minute. Only about 30 of them are fraud. This is what a badly unbalanced problem looks like, and it changes which metrics still work.',
+  miss:'The bank loses the money and refunds the customer. If it keeps happening, the fraud ring grows.',
+  alarm:'An honest customer has their card blocked in a restaurant. They call support angry, and some of them leave the bank.',
+  key:'f1',
+  advice:'Both mistakes cost real money here, so no single side wins. This is where F1 is used, because it combines precision and recall into one number that teams can rank models by. Watch how F1 refuses to look good even when accuracy looks perfect.',
+  verdict:m=>m.F1>=0.35
+    ?['good','About as good as this gets','F1 is '+f2(m.F1)+' with only '+m.P+' fraud cases hidden among 10,000 payments. You catch '+m.TP+' of them and annoy '+m.FP+' honest customers. Real fraud teams work in exactly this range.']
+    :m.prec<0.15?['bad','Far too many honest cards blocked','Precision is '+pc(m.prec)+'. For every real fraud you catch you block about '+Math.round(m.FP/Math.max(m.TP,1))+' honest payments. Accuracy still reads '+pc1(m.acc)+' because most payments are fine. Accuracy tells you nothing here.']
+    :['warn','Too careful for a fraud model','You let '+m.FN+' frauds out of '+m.P+' go through, to protect precision of '+pc(m.prec)+'. F1 is '+f2(m.F1)+'. F1 stays low on purpose when one side is much weaker than the other.']},
+
+ {menu:'Emergency braking in a self-driving car',
+  name:'Pedestrian detection for automatic braking',
+  n:2000,prev:0.12,d:2.8,t0:0.35,
+  unit:'camera frames',pos:'a person is in the road',neg:'the road is clear',posShort:'person ahead',negShort:'road clear',
+  yesWord:'slam on the brakes',noWord:'keep driving',
+  setup:'2,000 camera frames from a city drive. About 240 of them contain a person in front of the car. The car has a few milliseconds to decide whether to brake.',
+  miss:'The car does not brake. A person is hit. There is no way to undo this one.',
+  alarm:'The car brakes hard on an empty road. The car behind hits you, and passengers stop trusting the system.',
+  key:'rec',
+  advice:'One mistake is a death and the other is a bump. So recall is pushed extremely high on purpose. Move the dial and look at the false alarm count. This scenario is really about showing you the price of very high recall.',
+  verdict:m=>m.rec>=0.99
+    ?['good','Safe recall, but look at the cost',pc1(m.rec)+' recall, so only '+m.FN+' people missed. But you also braked hard '+m.FP+' times on clear road. This is why self-driving teams spend years improving precision while holding recall fixed.']
+    :m.rec>=0.95?['warn','Not safe enough to ship',m.FN+' people out of '+m.P+' not detected. In safety work 95% is not a good score, it is a recall notice. False alarms dropped to '+m.FP+', which no regulator will accept as the reason.']
+    :['bad','This car hits people','Recall is '+pc(m.rec)+'. '+m.FN+' people were not detected. Accuracy reads '+pc(m.acc)+'. If you ever needed proof that accuracy is the wrong metric, this is it.']},
+
+ {menu:'Résumé screening for a job',
+  name:'Automatic résumé screening',
+  n:500,prev:0.10,d:1.1,t0:1.0,
+  unit:'applicants',pos:'would do the job well',neg:'would not work out',posShort:'good hire',negShort:'not suitable',
+  yesWord:'put them on the shortlist',noWord:'reject them',
+  setup:'500 people apply for one job. Maybe 50 of them would really do it well. Notice this model is weak on purpose, because a résumé does not predict job performance very well.',
+  miss:'You silently reject someone who would have been excellent. Nobody ever finds out, so nobody ever fixes it.',
+  alarm:'You spend a 45 minute interview on someone who was never going to work out.',
+  key:'prec',
+  advice:'Recruiters chase precision because interview time is the cost they can see. The uncomfortable point of this example is that the misses are invisible, and with a model this weak there are a lot of them.',
+  verdict:m=>m.rec<0.35
+    ?['bad','Efficient, and quietly losing good people','You shortlist '+(m.TP+m.FP)+' people and '+pc(m.prec)+' of them are good. But you rejected '+m.FN+' strong candidates who will never know. Nobody on the hiring team is measured on that number.']
+    :m.prec>=0.30?['warn','Reasonable for a weak model','Precision '+pc(m.prec)+' and recall '+pc(m.rec)+'. With AUC around 0.78 this model is barely better than a quick human skim, so treat the shortlist as a reading order and not a decision.']
+    :['warn','Interview time is your real limit','You would interview '+(m.TP+m.FP)+' of 500 people to find '+m.TP+' good ones, and recall is '+pc(m.rec)+'. Whether that is worth it is a budget question, not a maths question.']},
+
+ {menu:'Reoffending risk at a bail hearing',
+  name:'Reoffending risk score before trial',
+  n:1000,prev:0.22,d:1.2,t0:1.0,
+  unit:'defendants',pos:'will reoffend',neg:'will not reoffend',posShort:'will reoffend',negShort:'will not',
+  yesWord:'keep them in custody',noWord:'release them',
+  setup:'1,000 people are waiting for trial. About 220 of them would commit another offence if released. A judge sees a risk score before deciding. Human prediction here is weak, and so is the model.',
+  miss:'Someone is released and commits another offence. It reaches the news with the software name in the headline.',
+  alarm:'Someone who would not have reoffended stays in jail for months, loses their job, and is never compensated.',
+  key:'prec',
+  advice:'There is no correct answer in this one. Precision tells you what share of the people you locked up actually needed locking up, and that is the number that almost never appears in a sales presentation.',
+  verdict:m=>m.prec<0.55
+    ?['bad','Read this number out loud','Of the '+(m.TP+m.FP)+' people marked high risk, '+m.FP+' would not have reoffended. Precision is only '+pc(m.prec)+'. No position of this dial makes the model good enough for the decision it is being used for. Sometimes the right answer is not to use it.']
+    :['warn','Better precision, paid for on the other side','Precision is '+pc(m.prec)+', but recall dropped to '+pc(m.rec)+', so '+m.FN+' people were released who will reoffend. Every position on this dial harms somebody. That is the real lesson here, not a number.']}
+,
+ {menu:'Factory machine breakdown prediction',
+  name:'Predicting machine breakdowns before they happen',
+  n:2000,prev:0.04,d:2.0,t0:0.9,
+  unit:'machines checked',pos:'is about to break down',neg:'is running fine',posShort:'about to break',negShort:'running fine',
+  yesWord:'stop it and inspect it',noWord:'leave it running',
+  setup:'A factory checks 2,000 machines every morning using sensor data. About 80 of them really are close to failing. This is the one situation on this page where you can put an exact price on each mistake, and that changes everything.',
+  miss:'The machine fails in the middle of a production run. Lost output, emergency repair, missed delivery. About \u20b980,000 each time.',
+  alarm:'A technician stops a healthy machine and inspects it for nothing. Lost time and labour, about \u20b93,000 each time.',
+  key:'rec',
+  advice:'Because a breakdown costs about 27 times more than a wasted inspection, you should be willing to accept roughly 27 false alarms to catch one extra real failure. That is not a guess. Total cost is (misses \u00d7 \u20b980,000) + (false alarms \u00d7 \u20b93,000), and you can slide the dial until that total is at its lowest. When you can price both mistakes, the best dial position stops being a matter of opinion.',
+  verdict:m=>{const c=m.FN*80000+m.FP*3000;
+   const line=' Total cost right now is '+R(m.FN*80000)+' in breakdowns plus '+R(m.FP*3000)+' in wasted inspections = '+R(c)+'.';
+   if(c<=2200000)return['good','Close to the cheapest setting','You catch '+pc(m.rec)+' of failures and waste '+m.FP+' inspections.'+line+' Try sliding the dial either way and watch the total go up. You are near the bottom of the cost curve.'];
+   if(c<=3500000)return['warn','Workable, but you are leaving money on the table','Precision is '+pc(m.prec)+' and recall '+pc(m.rec)+'.'+line+' Slide the dial slowly and watch this figure. It has a clear lowest point.'];
+   return m.rec<0.6?['bad','Too many breakdowns getting through','You are missing '+m.FN+' of '+m.P+' failures to save on inspections.'+line+' Inspections are cheap. Breakdowns are not. Move the dial left.']
+                   :['bad','You are inspecting far too much','Recall is fine at '+pc(m.rec)+' but you stopped '+m.FP+' healthy machines.'+line+' Move the dial right until the total stops falling.'];}},
+
+ {menu:'University dropout early warning',
+  name:'Early warning system for students at risk of dropping out',
+  n:3000,prev:0.08,d:1.6,t0:0.2,
+  unit:'students',pos:'is at risk of dropping out',neg:'will finish the course',posShort:'at risk',negShort:'will finish',
+  yesWord:'send a support email and offer free tutoring',noWord:'do nothing',
+  setup:'A university looks at attendance, assignment marks and library use for 3,000 students. About 240 of them are genuinely at risk of dropping out. Anyone flagged gets an automatic email from a mentor and a free tutoring slot.',
+  miss:'A struggling student gets no help, fails the year, and leaves. Years of their life and fees, gone.',
+  alarm:'A student who was doing fine gets a friendly email offering help they did not need. Cost: almost nothing.',
+  key:'rec',
+  advice:'This is the cleanest case on the whole page. The false alarm here is not harmful at all, it is just a kind email. So there is no reason to protect precision, and you should push recall as high as the mentoring team can handle. If a false alarm is nearly free, stop looking at precision.',
+  verdict:m=>m.rec>=0.90
+   ?['good','Exactly right for this problem','You reach '+pc(m.rec)+' of at-risk students and miss only '+m.FN+'. Yes, '+m.FP+' students get an email they did not need, but that is a kind email, not a harm. Precision of '+pc(m.prec)+' is not a problem here and you should ignore it.']
+   :m.rec>=0.75?['warn','You are protecting the wrong number','You are missing '+m.FN+' at-risk students so that fewer students get an unnecessary email. That is a bad trade. The email costs nothing. Move the dial left.']
+   :['bad','The system is not doing its job','Only '+pc(m.rec)+' of at-risk students are reached. '+m.FN+' students will struggle alone. The only reason to sit here is if the mentoring team cannot handle the volume, which is a staffing problem, not a modelling one.']},
+
+ {menu:'Plagiarism check on assignments',
+  name:'Plagiarism detection on submitted assignments',
+  n:1200,prev:0.06,d:2.6,t0:3.0,
+  unit:'assignments',pos:'was copied',neg:'is original work',posShort:'copied',negShort:'original',
+  yesWord:'send it to a teacher for review',noWord:'accept it as it is',
+  setup:'1,200 assignments are submitted. About 72 of them were genuinely copied. The software gives each one a similarity score. Important: a flag does not punish anybody, it only sends the work to a human teacher to look at.',
+  miss:'Someone who copied gets full marks. Unfair to everyone else, but nothing else happens.',
+  alarm:'An honest student is accused of cheating. Even if cleared, the accusation is stressful and can stay on record.',
+  key:'prec',
+  advice:'A wrong accusation damages a real person, so precision has to be very high, and that means most cheaters get away with it. Universities accept that trade deliberately. Notice also that the model never decides anything on its own. It only ranks work for a human to check, which is the safest way to use a model whose false positives are harmful.',
+  verdict:m=>m.prec>=0.90
+   ?['good','Safe setting for an accusation tool','Of the '+(m.TP+m.FP)+' assignments sent for review, '+pc(m.prec)+' really were copied. Only '+m.FP+' honest students are troubled. You only catch '+pc(m.rec)+' of cheating, and that is the price of not accusing innocent people.']
+   :m.prec>=0.70?['warn','Too many honest students being questioned',m.FP+' honest students are being sent for review. Recall improved to '+pc(m.rec)+', but the extra cheaters caught are not worth accusing innocent people. Move the dial right.']
+   :['bad','This would accuse innocent students','Precision is only '+pc(m.prec)+'. '+m.FP+' honest students would be flagged. No academic office would ever run a tool at this setting, whatever it does for recall.']},
+
+ {menu:'Content moderation on a social app',
+  name:'Automatic content moderation at scale',
+  n:100000,prev:0.015,d:2.3,t0:2.4,
+  unit:'posts',pos:'breaks the rules',neg:'is allowed',posShort:'breaks rules',negShort:'allowed',
+  yesWord:'take the post down',noWord:'leave the post up',
+  setup:'100,000 posts go up in one hour. About 1,500 of them break the rules. This situation exists to show you what happens to a good model when you run it at enormous scale.',
+  miss:'Harmful content stays up and spreads. People get hurt and the app gets blamed.',
+  alarm:'A legal post is removed. That person is silenced, files an appeal, and posts a screenshot about censorship.',
+  key:'prec',
+  advice:'Look at specificity in the panel. It is very high, which sounds excellent. Now look at the FP count. A false alarm rate of under 1% sounds tiny, but 1% of 98,500 allowed posts is still hundreds of real people wrongly silenced every hour. At scale you must judge rates by the number of people they affect, not by how small the percentage looks.',
+  verdict:m=>m.prec>=0.75
+   ?['good','Defensible for an automatic takedown',pc(m.prec)+' of removals were correct, so '+N(m.FP)+' legal posts were wrongly removed this hour. That is still '+N(m.FP*24)+' a day, which is why platforms always pair this with an appeals process.']
+   :m.prec>=0.45?['warn','Look at the count, not the rate','Specificity is '+pc1(m.spec)+', which looks great. But that leaves '+N(m.FP)+' wrongly removed posts in one hour, roughly '+N(m.FP*24)+' a day. This is the whole lesson of this situation.']
+   :['bad','Removing mostly legal content','Precision is '+pc(m.prec)+'. Of '+N(m.TP+m.FP)+' takedowns, '+N(m.FP)+' were legal posts. Accuracy still reads '+pc1(m.acc)+' because most posts are fine, which tells you nothing at all.']}
+
+];
+
+
+const HL=[{"acc": ["Mostly it just means most women are healthy and you correctly left them alone. Accuracy can look high while tumours are being missed, so never judge this programme on it.", "Something is badly wrong. You are calling back a huge share of healthy women for no reason."], "prec": ["Most women you called back really do have cancer. Sounds good, but in screening it usually means the dial is too strict and tumours are slipping past.", "Most callbacks are false alarms. This is normal and accepted in real screening, but it costs clinic time and frightens healthy women."], "rec": ["You are finding almost every tumour. This is exactly the goal of a screening programme.", "Dangerous. Real tumours are being missed and those women are being told they are fine."], "spec": ["Healthy women are mostly left in peace, so few unnecessary biopsies.", "The clinic is flooded with healthy women coming back for tests they did not need."], "f1": ["Unusual in screening. It would mean both sides are balanced, which normally means recall is not high enough.", "Expected here. Screening gives up precision on purpose, so a low F1 is not by itself a problem in this situation."], "kap": ["The model is genuinely spotting tumours, not just betting that almost everyone is healthy.", "The model is barely better than assuming nobody has cancer. Its accuracy is coming from the size of the healthy group, not from skill."], "auc": ["The model puts risky scans above safe ones, so some dial position will work well. You just have to choose it.", "The scores are close to random and no dial position will save it. You need a better model, not a better cut-off."]}, {"acc": ["Most mail is being sorted correctly. Accuracy is reasonably meaningful here, because the two groups are close in size.", "The filter is mislabelling a lot of mail in both directions."], "prec": ["Almost everything in the junk folder really is junk. This is the number you want as close to 100% as possible.", "Real emails are being junked. This is the worst thing that can happen on this problem."], "rec": ["Almost no spam reaches your inbox. Nice, but never worth losing a real email for.", "Spam gets through and your inbox is messy. Annoying, but harmless."], "spec": ["Real mail almost always reaches the inbox. On this problem that is the same goal as precision.", "Real mail is being lost, which is the failure everybody notices."], "f1": ["Both jobs are working: spam is blocked and real mail survives.", "One of the two sides is broken. Check precision first, because that is the one that matters here."], "kap": ["The filter is really reading the content of the emails.", "It is mostly guessing from which group is bigger rather than from what the email says."], "auc": ["Spam scores sit clearly above real mail scores, so you can choose a very strict cut-off and still block most spam.", "Spam and real mail look alike to the model, so no cut-off will keep both your inbox clean and your real mail safe."]}, {"acc": ["Meaningless here. It will sit above 99% whatever you do, because almost every payment is normal. Ignore this number completely.", "This would take real effort. It means you are blocking enormous numbers of good payments."], "prec": ["Most blocked payments really were fraud, so very few angry customers on the phone.", "You are blocking many honest customers for every fraud you catch. That means support costs and customers leaving."], "rec": ["Most fraud is caught, so losses are low. But check what it cost you in blocked honest payments.", "Fraud is getting through and the bank is paying for it."], "spec": ["It will almost always be high here, for the same reason accuracy is. Not informative.", "Alarming. It means a large share of the 9,970 honest payments were blocked."], "f1": ["Rare and genuinely good on this problem. You are catching a fair share of fraud without blocking many honest payments.", "Normal and expected. Severe imbalance makes F1 hard to raise, which is exactly why it is the honest metric here while accuracy is not."], "kap": ["The model really can tell fraud apart from normal spending.", "Despite 99% accuracy, it is barely better than approving every payment. This is the number that exposes the accuracy trap."], "auc": ["Fraud sits near the top of the score list, so a human team can review only the riskiest few hundred payments and still find most of it.", "Fraud looks like ordinary spending to the model. No dial setting will be usable."]}, {"acc": ["Says almost nothing useful. Most frames are empty road, so accuracy is high by default.", "The car is braking constantly on clear road."], "prec": ["When it brakes, there really is someone there. Few phantom brakes, so passengers keep trusting the system.", "Lots of phantom braking. That causes rear-end crashes and makes drivers switch the system off, which is its own safety problem."], "rec": ["This is the number that has to be near perfect. Almost every person is detected.", "Unacceptable at any level. The car will hit someone."], "spec": ["Smooth, calm driving on empty roads.", "The car brakes for nothing over and over."], "f1": ["Hard to reach here. Safety forces recall so high that precision has to suffer.", "Expected. Engineers do not watch F1 on this problem. They fix recall at 99.9% and then fight to improve precision."], "kap": ["It really recognises people in the image.", "It is mostly reacting to how often people usually appear rather than to what the camera is showing."], "auc": ["Essential. A high AUC is what lets you set recall at 99.9% without braking every few seconds.", "There is no dial position that is both safe and drivable. The model itself must improve."]}, {"acc": ["Mostly means you rejected a lot of people, and most people were going to be rejected anyway. Nearly useless here.", "You shortlisted far too many applicants."], "prec": ["Most people you interview turn out to be good. This is the number recruiters actually care about.", "You are spending interview hours on candidates who were never going to work out."], "rec": ["Few good candidates are thrown away, but you have to interview many more people to get there.", "You are silently rejecting strong candidates. Nobody ever finds out, which is exactly why this number deserves attention."], "spec": ["Unsuitable applicants are filtered out well.", "Unsuitable people are reaching the interview stage."], "f1": ["Difficult with a model this weak. It would mean the shortlist is both efficient and fair.", "Expected. Read it as a sign that the model is the problem, not the dial position."], "kap": ["The model is reading something genuinely predictive in the résumé.", "Which is what you should expect. Résumés predict job performance poorly, so a low kappa here is honest rather than surprising."], "auc": ["The ranking is trustworthy enough to use as an ordering.", "At around 0.78 the ordering is weak. Use the shortlist as a reading order and never as an automatic rejection."]}, {"acc": ["Easy to reach by detaining almost nobody, or almost everybody, depending on the mix. It is not a defence of the tool.", "The score is contradicting the outcomes very often."], "prec": ["Most people you detained really would have reoffended. This is the fairness number.", "You are jailing people who would have been fine. Say this number out loud before anybody deploys the tool."], "rec": ["Few released people reoffend, but only because you detained many more people to get there.", "More reoffending after release. This is the failure that reaches the newspapers."], "spec": ["People who would not have reoffended are mostly released. This is the liberty side of the trade.", "Many harmless people are being held in custody."], "f1": ["Both sides look balanced, but be careful: F1 treats a wrongly jailed person and a missed reoffence as equally bad, and a court would not agree.", "One side is failing. Look at which one before you conclude anything, because the two errors are not morally equal here."], "kap": ["The score genuinely predicts reoffending.", "Close to the truth in reality. Reoffending is very hard to predict, so a low kappa is a reason to question the whole tool rather than the dial."], "auc": ["Would justify using the ranking to inform a judge, though not to decide for one.", "At around 0.80 or below the ordering is weak, so two people with the same score can have very different real outcomes."]}, {"acc": ["Mostly means most machines are fine and you left them alone. It does not tell you whether you avoided any breakdowns.", "You are stopping a very large share of healthy machines."], "prec": ["Most machines you stopped really were about to fail, so little wasted technician time.", "Most inspections find nothing wrong. On this problem that is fine, because an inspection costs ₹3,000 and a breakdown costs ₹80,000."], "rec": ["You are catching almost every failure before it happens, which is the point of the whole system.", "Machines are failing mid-production. Each one of those costs about 27 wasted inspections, so this is the expensive kind of mistake."], "spec": ["Healthy machines are mostly left running, so production is not interrupted.", "The line keeps stopping for machines that were fine."], "f1": ["Both sides are balanced. Useful as a quick check, but on this problem the money calculation is better than F1.", "Not necessarily bad. F1 treats a breakdown and a wasted inspection as equally bad, and here one costs 27 times the other, so trust the total cost figure over F1."], "kap": ["The sensor data really does predict failure.", "The system is barely better than inspecting at random, so the sensors or the model need work before the dial does."], "auc": ["A good dial position exists and the money calculation will find it.", "The sensors cannot tell a failing machine from a healthy one, so no dial position will save money."]}, {"acc": ["Mostly means most students were going to pass and you left them alone. It says nothing about whether you helped anybody.", "You are emailing almost the entire student body."], "prec": ["Most students you contacted really were at risk. Nice, but do not chase this number here, because it usually means you stopped contacting students who needed help.", "Most emails went to students who were fine. That is completely acceptable here, because the email costs almost nothing."], "rec": ["Almost every struggling student gets offered help. This is the only number the system should be judged on.", "Struggling students are being missed and will get no support at all. This is the failure that matters."], "spec": ["Few students are bothered unnecessarily. A nice-to-have, not a goal.", "Many students get an email they did not need. Harmless."], "f1": ["Balanced, but on this problem that balance is not what you want. F1 penalises you for sending harmless emails.", "Usually low here and that is fine. Do not use F1 to tune this system."], "kap": ["Attendance and marks really do predict who is at risk.", "The signals are weak, so treat the flag as a prompt for a human conversation rather than a conclusion."], "auc": ["The ranking is good enough that mentors can start with the highest-risk students first when time is short.", "The ranking is close to random, so mentors would do just as well contacting everybody."]}, {"acc": ["Almost meaningless here. Most work is original, so accuracy is high by default.", "You are flagging a large share of honest work, which would be a scandal."], "prec": ["Almost everything sent to a teacher really was copied, so honest students are rarely troubled. This is the number that protects students.", "Honest students are being accused. This is the failure that gets a tool banned from a university."], "rec": ["You catch most of the cheating. Only push for this if you are sure precision is safe first.", "Most cheaters are getting away with it. Unfair, but far less damaging than accusing an innocent student, so a low recall is accepted here on purpose."], "spec": ["Original work is almost never questioned. This is really the same goal as precision here.", "Honest students are being pulled into reviews."], "f1": ["Both sides are working well, which usually means the model is genuinely strong.", "Expected here, because recall is deliberately sacrificed. Do not raise F1 by lowering precision on this problem."], "kap": ["The similarity score really does identify copied work.", "The score is close to noise, and a noisy score must never be used to question a student."], "auc": ["Copied work sits clearly above original work in the ranking, so you can pick a very strict cut-off and still catch some cheating.", "Copied and original work look similar to the tool. Any cut-off strict enough to be fair will catch almost nothing."]}, {"acc": ["Says nothing at all. 98.5% of posts are fine, so accuracy is high before the model even starts.", "You would be removing a huge share of legal posts, which would be an emergency."], "prec": ["Most removals were correct, so few wrongly silenced users and few appeals. This is the accountability number.", "You are removing mostly legal posts. Each one is a real person who was silenced, and at this volume there will be thousands of them."], "rec": ["Most rule-breaking content comes down quickly. But always read the FP count next to it.", "Harmful content is staying up and spreading. This is the failure regulators and journalists focus on."], "spec": ["It will always look excellent here, because almost every post is fine. Do not be reassured by it. Read the FP count in the panel instead, because that is the number of real people affected.", "A disaster at this scale. Even a few percent means thousands of wrongly removed posts every hour."], "f1": ["Genuinely good and hard to reach on a rare-class problem at this size.", "Normal. F1 stays low when the rule-breaking class is small, which is why it is more honest than accuracy here."], "kap": ["The model really understands the content.", "Despite very high accuracy, it is barely better than leaving everything up. This is the accuracy trap in its clearest form."], "auc": ["Rule-breaking posts sit near the top of the ranking, so a human review team can start at the top and work down.", "Rule-breaking posts look like normal posts to the model, so no cut-off will be both safe and fair."]}];
+
+function hlRows(k){
+ const h=HL[idx][k];
+ if(!h)return'';
+ return `<div class="hl"><div class="k h">if high</div><div class="t">${h[0]}</div>
+ <div class="k l">if low</div><div class="t">${h[1]}</div></div>`;
+}
+
+const TMIN=-3.2,TMAX=5.6;
+let idx=0,t=0.85,mode='eq';
+
+function erf(x){const s=x<0?-1:1;x=Math.abs(x);const a1=.254829592,a2=-.284496736,a3=1.421413741,a4=-1.453152027,a5=1.061405429,p=.3275911;const u=1/(1+p*x);return s*(1-((((a5*u+a4)*u+a3)*u+a2)*u+a1)*u*Math.exp(-x*x));}
+const Phi=z=>0.5*(1+erf(z/Math.SQRT2));
+const pdf=z=>Math.exp(-z*z/2)/Math.sqrt(2*Math.PI);
+const pc=v=>(v*100).toFixed(0)+'%';
+const pc1=v=>(v*100).toFixed(1)+'%';
+const f2=v=>v.toFixed(2);
+const f3=v=>v.toFixed(3);
+const N=n=>n.toLocaleString('en-US');
+const R=x=>'₹'+Math.round(x).toLocaleString('en-IN');
+
+function calc(s,th){
+ const P=Math.round(s.n*s.prev),Ng=s.n-P;
+ const TP=Math.round(P*(1-Phi(th-s.d))),FN=P-TP;
+ const FP=Math.round(Ng*(1-Phi(th))),TN=Ng-FP;
+ const flag=TP+FP,acc=(TP+TN)/s.n;
+ const prec=flag?TP/flag:0,rec=P?TP/P:0,spec=Ng?TN/Ng:0;
+ const F1=(prec+rec)?2*prec*rec/(prec+rec):0;
+ const pe=(flag/s.n)*(P/s.n)+((FN+TN)/s.n)*(Ng/s.n);
+ return{P,Ng,TP,FN,FP,TN,flag,acc,prec,rec,spec,F1,pe,kappa:pe<1?(acc-pe)/(1-pe):0,
+        nullAcc:Ng/s.n,auc:Phi(s.d/Math.SQRT2),n:s.n};
+}
+
+/* ---------- chart ---------- */
+const X0=48,X1=656,YU=150,YL=166,H=98;
+const xs=v=>X0+(v-TMIN)/(TMAX-TMIN)*(X1-X0);
+const sc=px=>TMIN+(px-X0)/(X1-X0)*(TMAX-TMIN);
+
+function band(mu,k,from,to,base,dir){
+ let d=`M ${xs(from).toFixed(1)} ${base}`;
+ for(let i=0;i<=100;i++){const v=from+(to-from)*i/100;
+  d+=` L ${xs(v).toFixed(1)} ${(base+dir*pdf(v-mu)*k).toFixed(1)}`;}
+ return d+` L ${xs(to).toFixed(1)} ${base} Z`;
+}
+function regionLab(x1,x2,y,txt,col){
+ if(x2-x1<44)return'';
+ const cx=Math.min(Math.max((x1+x2)/2,X0+26),X1-26);
+ return `<text x="${cx}" y="${y}" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="12" font-weight="600" fill="${col}">${txt}</text>`;
+}
+function drawChart(s,m){
+ const kN=(mode==='eq'?H/pdf(0)/m.Ng:H/pdf(0)/Math.max(m.Ng,m.P))*m.Ng;
+ const kP=(mode==='eq'?H/pdf(0)/m.P:H/pdf(0)/Math.max(m.Ng,m.P))*m.P;
+ const bx=xs(t);
+ let g='';
+ g+=`<line x1="${X0}" y1="${YU}" x2="${X1}" y2="${YU}" stroke="#C2CBD3" stroke-width="1"/>`;
+ g+=`<line x1="${X0}" y1="${YL}" x2="${X1}" y2="${YL}" stroke="#C2CBD3" stroke-width="1"/>`;
+ g+=`<path d="${band(0,kN,TMIN,t,YU,-1)}" fill="#0E7A62" fill-opacity="0.34"/>`;
+ g+=`<path d="${band(0,kN,t,TMAX,YU,-1)}" fill="#BE4034" fill-opacity="0.34"/>`;
+ g+=`<path d="${band(0,kN,TMIN,TMAX,YU,-1)}" fill="none" stroke="#4A5661" stroke-width="1.2"/>`;
+ g+=`<path d="${band(s.d,kP,TMIN,t,YL,1)}" fill="#BE4034" fill-opacity="0.34"/>`;
+ g+=`<path d="${band(s.d,kP,t,TMAX,YL,1)}" fill="#0E7A62" fill-opacity="0.34"/>`;
+ g+=`<path d="${band(s.d,kP,TMIN,TMAX,YL,1)}" fill="none" stroke="#0F1720" stroke-width="1.4"/>`;
+ g+=`<line x1="${bx}" y1="14" x2="${bx}" y2="290" stroke="#B0730B" stroke-width="2.2"/>`;
+ g+=`<polygon points="${bx-7},14 ${bx+7},14 ${bx},25" fill="#B0730B"/>`;
+ g+=`<text x="${Math.min(Math.max(bx,X0+34),X1-34)}" y="308" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="12" font-weight="600" fill="#B0730B">the dial</text>`;
+ g+=`<text x="${X0}" y="34" font-family="IBM Plex Sans, sans-serif" font-size="12.5" font-weight="500" fill="#0F1720">Really ${s.negShort} — ${N(m.Ng)} cases</text>`;
+ g+=`<text x="${X0}" y="286" font-family="IBM Plex Sans, sans-serif" font-size="12.5" font-weight="500" fill="#0F1720">Really ${s.posShort} — ${N(m.P)} cases</text>`;
+ g+=regionLab(X0,bx,YU-8,'TN '+N(m.TN),'#0A4C3E');
+ g+=regionLab(bx,X1,YU-8,'FP '+N(m.FP),'#7C2A22');
+ g+=regionLab(X0,bx,YL+18,'FN '+N(m.FN),'#7C2A22');
+ g+=regionLab(bx,X1,YL+18,'TP '+N(m.TP),'#0A4C3E');
+ g+=`<text x="${X0}" y="${YU+11}" font-family="IBM Plex Mono, monospace" font-size="10.5" fill="#7A8691">low score</text>`;
+ g+=`<text x="${X1}" y="${YU+11}" text-anchor="end" font-family="IBM Plex Mono, monospace" font-size="10.5" fill="#7A8691">high score</text>`;
+ document.getElementById('chart').innerHTML=`<title id="chart-t">Two groups cut by a dial</title>`+g;
+}
+function drawRoc(s,m){
+ const p=42,S=244,X=v=>p+v*S,Y=v=>p+S-v*S;
+ let pts='';
+ for(let i=0;i<=120;i++){const th=TMAX-(TMAX-TMIN)*i/120;
+  pts+=`${X(1-Phi(th)).toFixed(1)},${Y(1-Phi(th-s.d)).toFixed(1)} `;}
+ let g=`<rect x="${p}" y="${p}" width="${S}" height="${S}" fill="#F6F8FA" stroke="#DCE2E8"/>`;
+ g+=`<line x1="${X(0)}" y1="${Y(0)}" x2="${X(1)}" y2="${Y(1)}" stroke="#C2CBD3" stroke-dasharray="4 4"/>`;
+ g+=`<polyline points="${X(0)},${Y(0)} ${pts}" fill="#1B5A9C" fill-opacity="0.1" stroke="none"/>`;
+ g+=`<polyline points="${pts}" fill="none" stroke="#1B5A9C" stroke-width="2"/>`;
+ g+=`<circle cx="${X(1-Phi(t))}" cy="${Y(1-Phi(t-s.d))}" r="5.5" fill="#B0730B" stroke="#fff" stroke-width="2"/>`;
+ g+=`<text x="${p+S/2}" y="${p+S+26}" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10.5" fill="#7A8691">false alarm rate</text>`;
+ g+=`<text x="${p-12}" y="${p+S/2}" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10.5" fill="#7A8691" transform="rotate(-90 ${p-12} ${p+S/2})">recall</text>`;
+ document.getElementById('roc').innerHTML=`<title id="roc-t">ROC curve</title>`+g;
+}
+
+/* ---------- panel ---------- */
+function drawMatrix(s,m){
+ document.getElementById('matrix').innerHTML=`
+ <div></div><div class="mh">model says yes</div><div class="mh">model says no</div>
+ <div class="ms">Really<br>${s.posShort}</div>
+ <div class="mc g"><div class="t">TP</div><div class="n">${N(m.TP)}</div><div class="s">right</div></div>
+ <div class="mc r"><div class="t">FN</div><div class="n">${N(m.FN)}</div><div class="s">missed</div></div>
+ <div class="ms">Really<br>${s.negShort}</div>
+ <div class="mc r"><div class="t">FP</div><div class="n">${N(m.FP)}</div><div class="s">false alarm</div></div>
+ <div class="mc g"><div class="t">TN</div><div class="n">${N(m.TN)}</div><div class="s">right</div></div>`;
+}
+function drawTable(s,m){
+ const rows=[['acc','Accuracy',pc1(m.acc)],['prec','Precision',pc1(m.prec)],['rec','Recall',pc1(m.rec)],
+  ['spec','Specificity',pc1(m.spec)],['f1','F1 score',f2(m.F1)],['kap','Kappa',f2(m.kappa)],['auc','AUC',f3(m.auc)]];
+ document.getElementById('mt').innerHTML=rows.map(r=>
+  `<tr class="${r[0]===s.key?'key':''}"><td>${r[1]}${r[0]===s.key?'<span class="tag">key here</span>':''}</td><td class="v">${r[2]}</td></tr>`).join('');
+}
+
+/* ---------- explanations ---------- */
+function cells(s,m){
+ document.getElementById('cells-intro').textContent=
+  'For this situation, "yes" means the model decides to '+s.yesWord+'. Here is what each of the four counts is, right now:';
+ const rows=[
+  ['g','TP',m.TP,'Really '+s.pos+', and the model said yes. Correct, and useful.'],
+  ['r','FN',m.FN,'Really '+s.pos+', but the model said no. This is a miss.'],
+  ['r','FP',m.FP,'Really '+s.neg+', but the model said yes. This is a false alarm.'],
+  ['g','TN',m.TN,'Really '+s.neg+', and the model said no. Correct, and quiet.']];
+ document.getElementById('cells-list').innerHTML=rows.map(r=>
+  `<div class="box ${r[0]==='r'?'a':''}" style="margin-top:10px;${r[0]==='g'?'border-left-color:var(--ok)':''}">
+   <h4>${r[1]} = ${N(r[2])}</h4><p>${r[3]}</p></div>`).join('');
+ document.getElementById('cells-total').textContent=N(m.n)+' '+s.unit;
+}
+
+function block(name,q,lines,plain,star,mk){
+ return `<div class="calc ${star?'star':''}"><div class="nm">${name}${star?'<span class="tag">key here</span>':''}</div>
+ <div class="q">${q}</div>${lines.map((l,i)=>`<div class="line ${i===lines.length-1?'res':''}">${l}</div>`).join('')}
+ <div class="plain">${plain}</div>${hlRows(mk)}</div>`;
+}
+function drawCalcs(s,m){
+ const P=N(m.TP),F=N(m.FP),Nn=N(m.FN),T=N(m.TN);
+ let h='';
+ h+=block('Accuracy','Out of everything, how much did it get right?',
+  ['(TP + TN) ÷ total',
+   '('+P+' + '+T+') ÷ '+N(m.n),
+   N(m.TP+m.TN)+' ÷ '+N(m.n)+' = '+f3(m.acc)+'  =  '+pc1(m.acc)],
+  'It got '+N(m.TP+m.TN)+' of '+N(m.n)+' '+s.unit+' right. Careful: this counts the big quiet TN box, so it looks good whenever one group is much larger than the other.',s.key==='acc','acc');
+ h+=block('Precision','When it says yes, how often is it right?',
+  ['TP ÷ (TP + FP)',
+   P+' ÷ ('+P+' + '+F+')',
+   P+' ÷ '+N(m.flag)+' = '+f3(m.prec)+'  =  '+pc1(m.prec)],
+  'The model said yes '+N(m.flag)+' times. '+P+' of those were correct. So if it flags something, there is a '+pc(m.prec)+' chance it is really '+s.pos+'.',s.key==='prec','prec');
+ h+=block('Recall (also called sensitivity)','Out of all the real cases, how many did it catch?',
+  ['TP ÷ (TP + FN)',
+   P+' ÷ ('+P+' + '+Nn+')',
+   P+' ÷ '+N(m.P)+' = '+f3(m.rec)+'  =  '+pc1(m.rec)],
+  'There were '+N(m.P)+' real cases. It caught '+P+' and missed '+Nn+'. Notice FP does not appear in this formula at all, so recall cannot see false alarms.',s.key==='rec','rec');
+ h+=block('Specificity','Out of all the fine cases, how many were left alone?',
+  ['TN ÷ (TN + FP)',
+   T+' ÷ ('+T+' + '+F+')',
+   T+' ÷ '+N(m.Ng)+' = '+f3(m.spec)+'  =  '+pc1(m.spec)],
+  'This is the mirror image of recall, measured on the other group. '+F+' fine cases were disturbed for no reason.',s.key==='spec','spec');
+ h+=block('F1 score','One number that combines precision and recall.',
+  ['2 × (precision × recall) ÷ (precision + recall)',
+   '2 × ('+f3(m.prec)+' × '+f3(m.rec)+') ÷ ('+f3(m.prec)+' + '+f3(m.rec)+')',
+   '2 × '+f3(m.prec*m.rec)+' ÷ '+f3(m.prec+m.rec)+' = '+f3(m.F1)],
+  'This is a harmonic mean, not a normal average. That matters: a normal average of 0.99 and 0.01 would be 0.50, but F1 gives 0.02. It refuses to look good when one of the two halves is bad.',s.key==='f1','f1');
+ document.getElementById('calcs').innerHTML=h;
+}
+
+function drawKappa(s,m){
+ const po=m.acc,pe=m.pe;
+ document.getElementById('kappa-calc').innerHTML=
+ `<div class="step">Step 1 — how often it was actually right</div>
+  <div class="line">(${N(m.TP)} + ${N(m.TN)}) ÷ ${N(m.n)} = ${f3(po)}</div>
+  <div class="step">Step 2 — how often pure luck would be right</div>
+  <div class="line">it said yes ${N(m.flag)} times, and ${N(m.P)} cases really were yes</div>
+  <div class="line">(${N(m.flag)}/${N(m.n)} × ${N(m.P)}/${N(m.n)}) + (${N(m.FN+m.TN)}/${N(m.n)} × ${N(m.Ng)}/${N(m.n)})</div>
+  <div class="line">= ${f3((m.flag/m.n)*(m.P/m.n))} + ${f3(((m.FN+m.TN)/m.n)*(m.Ng/m.n))} = ${f3(pe)}</div>
+  <div class="step">Step 3 — kappa</div>
+  <div class="line">(actual − luck) ÷ (1 − luck)</div>
+  <div class="line">(${f3(po)} − ${f3(pe)}) ÷ (1 − ${f3(pe)})</div>
+  <div class="line res">${f3(po-pe)} ÷ ${f3(1-pe)} = ${f2(m.kappa)}</div>
+  <div class="plain">Kappa is <b>${f2(m.kappa)}</b>, which counts as <b>${m.kappa<0.2?'poor — barely better than guessing':m.kappa<0.4?'fair':m.kappa<0.6?'moderate':m.kappa<0.8?'good':'very good'}</b>. Accuracy said ${pc1(po)}, but luck alone would already have got ${pc1(pe)} right. Kappa only gives credit for the gap between them.</div>`+hlRows('kap');
+}
+
+/* ---------- render ---------- */
+function render(){
+ const s=SCEN[idx],m=calc(s,t);
+ drawChart(s,m);drawMatrix(s,m);drawTable(s,m);drawRoc(s,m);cells(s,m);drawCalcs(s,m);drawKappa(s,m);
+ document.getElementById('dialnote').innerHTML=
+  `Right now the model says <b>yes</b> to ${N(m.flag)} of ${N(m.n)} ${s.unit}, so it would ${s.yesWord} ${N(m.flag)} times.`;
+ document.getElementById('w-neg').textContent='no ('+s.neg+')';
+ document.getElementById('w-pos').textContent='yes ('+s.pos+')';
+ document.getElementById('s-name').textContent=s.name;
+ document.getElementById('s-setup').textContent=s.setup;
+ document.getElementById('s-miss').textContent=s.miss;
+ document.getElementById('s-alarm').textContent=s.alarm;
+ document.getElementById('lazy-says').textContent='no, '+s.negShort;
+ document.getElementById('acc-a').textContent=pc1(m.acc);
+ document.getElementById('acc-an').textContent=N(m.TP+m.TN)+' of '+N(m.n)+' correct';
+ document.getElementById('acc-b').textContent=pc1(m.nullAcc);
+ document.getElementById('acc-bn').textContent='it gets all '+N(m.Ng)+' TN cases right and nothing else';
+ document.getElementById('trap-say').innerHTML=m.nullAcc>m.acc
+  ? `The lazy model <b>beats yours</b>: ${pc1(m.nullAcc)} against ${pc1(m.acc)}. It never learned anything. It just noticed that most cases are ${s.negShort}.`
+  : `Your model wins, but only by <b>${((m.acc-m.nullAcc)*100).toFixed(1)} points</b> (${pc1(m.acc)} against ${pc1(m.nullAcc)}). Always work out the lazy score before you feel good about an accuracy number.`;
+ document.getElementById('auc-p').textContent='yes ('+s.posShort+')';
+ document.getElementById('auc-n').textContent='no ('+s.negShort+')';
+ document.getElementById('auc-v').textContent=f3(m.auc);
+ document.getElementById('auc-hl').innerHTML=hlRows('auc');
+ const v=s.verdict(m);
+ document.getElementById('verdict').innerHTML=`<div class="verdict ${v[0]}"><h4>${v[1]}</h4><p>${v[2]}</p></div>`;
+ document.getElementById('advice').textContent=s.advice;
+}
+
+function toggleScale(){mode=mode==='eq'?'true':'eq';
+ document.getElementById('scaleBtn').textContent=mode==='eq'?'show true group sizes':'show equal heights';
+ render();}
+
+const sel=document.getElementById('pick');
+sel.innerHTML=SCEN.map((s,i)=>`<option value="${i}">${s.menu}</option>`).join('');
+sel.addEventListener('change',e=>{idx=+e.target.value;t=SCEN[idx].t0;sync();render();});
+
+const sl=document.getElementById('th');
+function sync(){sl.value=Math.round((t-TMIN)/(TMAX-TMIN)*1000);}
+sl.addEventListener('input',e=>{t=TMIN+(e.target.value/1000)*(TMAX-TMIN);render();});
+
+const ch=document.getElementById('chart');
+let drag=false;
+function grab(e){const r=ch.getBoundingClientRect();
+ t=Math.min(Math.max(sc((e.clientX-r.left)/r.width*680),TMIN),TMAX);sync();render();}
+ch.addEventListener('pointerdown',e=>{drag=true;ch.setPointerCapture(e.pointerId);grab(e);});
+ch.addEventListener('pointermove',e=>{if(drag)grab(e);});
+ch.addEventListener('pointerup',()=>{drag=false;});
+ch.addEventListener('pointercancel',()=>{drag=false;});
+
+sync();render();
+</script>

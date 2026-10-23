@@ -1,0 +1,799 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Error Metrics Lab — Regression (26ECP-102)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Zilla+Slab:wght@500;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#2A1C06; --ink-soft:#5C4A2E;
+  --paper:#EDEEE9; --card:#F7F7F4; --line:#CFCFC6;
+  --teal:#1F6F78; --teal-pale:#B9DEE3;
+  --under:#B23A1E; --over:#2E6E8A; --gold:#C08A18;
+  --rail:76px;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{
+  background:var(--paper); color:var(--ink);
+  font-family:"IBM Plex Sans",system-ui,sans-serif;
+  font-size:15px; line-height:1.55; padding-left:var(--rail);
+}
+.rail{
+  position:fixed; inset:0 auto 0 0; width:var(--rail); background:var(--ink); z-index:5;
+  display:flex; align-items:flex-end; justify-content:center; padding-bottom:26px;
+}
+.rail span{
+  writing-mode:vertical-rl; transform:rotate(180deg); color:var(--teal-pale);
+  font-size:11px; letter-spacing:.18em; font-family:"IBM Plex Mono",monospace;
+}
+.wrap{max-width:1180px; padding:34px 30px 70px}
+
+h1{
+  font-family:"Zilla Slab",Georgia,serif; font-weight:700;
+  font-size:clamp(30px,4.4vw,46px); line-height:1.03; margin:0 0 12px;
+  letter-spacing:-.015em; max-width:24ch;
+}
+.lede{max-width:66ch; color:var(--ink-soft); margin:0 0 4px}
+h2{font-family:"Zilla Slab",serif; font-weight:700; font-size:19px; margin:0 0 10px}
+h3{font-family:"Zilla Slab",serif; font-weight:700; font-size:15px; margin:0 0 6px}
+
+.scen{margin:26px 0 20px; border-top:2px solid var(--ink); padding-top:14px}
+.scen-head{display:flex; flex-wrap:wrap; align-items:baseline; gap:12px; margin-bottom:12px}
+.scen-head p{margin:0; color:var(--ink-soft); font-size:13.5px}
+.chips{display:flex; flex-wrap:wrap; gap:8px}
+.chip{
+  font:inherit; font-size:13px; font-weight:500; background:var(--card); color:var(--ink);
+  border:1px solid var(--line); border-radius:2px; padding:7px 12px; cursor:pointer;
+}
+.chip:hover{border-color:var(--ink)}
+.chip[aria-pressed="true"]{background:var(--ink); color:var(--paper); border-color:var(--ink)}
+.chip:focus-visible{outline:2px solid var(--teal); outline-offset:2px}
+
+.split{display:grid; grid-template-columns:minmax(0,1.4fr) minmax(300px,1fr); gap:26px; align-items:start}
+@media (max-width:940px){ .split{grid-template-columns:1fr} }
+
+.board{background:var(--card); border:1px solid var(--line); padding:14px 14px 8px}
+.board-top{display:flex; flex-wrap:wrap; gap:14px; align-items:center; justify-content:space-between; margin-bottom:6px}
+.hint{font-size:12.5px; color:var(--ink-soft); margin:0}
+.sqtoggle{display:inline-flex; align-items:center; gap:7px; font-size:13px; cursor:pointer}
+svg{display:block; width:100%; height:auto; touch-action:none}
+.knob{cursor:grab; fill:#fff; stroke:var(--ink); stroke-width:2}
+.knob:focus-visible{outline:none; stroke:var(--teal); stroke-width:3.5}
+.knob.dragging{cursor:grabbing}
+.tick-lbl{font-family:"IBM Plex Mono",monospace; font-size:10.5px; fill:var(--ink-soft)}
+.col-lbl{font-family:"IBM Plex Mono",monospace; font-size:11px; fill:var(--ink-soft); text-anchor:middle}
+.err-lbl{font-family:"IBM Plex Mono",monospace; font-size:11px; font-weight:600; text-anchor:middle}
+.grid-line{stroke:var(--line); stroke-width:1}
+.legend{display:flex; flex-wrap:wrap; gap:16px; font-size:12.5px; color:var(--ink-soft); padding:4px 2px 8px}
+.legend i{display:inline-block; width:16px; height:0; border-top:3px solid; margin-right:6px; vertical-align:3px}
+
+/* ---------- readout column ---------- */
+.rd-head{margin-bottom:10px}
+.rd-head h2{margin-bottom:4px}
+.rd-head p{margin:0; font-size:13px; color:var(--ink-soft)}
+.readouts{display:flex; flex-direction:column; gap:9px}
+.metric{background:var(--card); border:1px solid var(--line); border-left:4px solid var(--line); padding:8px 12px 10px}
+.metric.sel{border-color:var(--ink); border-left-color:var(--teal); background:#fff}
+.m-head{
+  display:grid; grid-template-columns:1fr auto; gap:1px 10px;
+  width:100%; text-align:left; font:inherit; background:none; border:0;
+  padding:0 0 6px; cursor:pointer; color:inherit;
+}
+.m-head:focus-visible{outline:2px solid var(--teal); outline-offset:2px}
+.m-name{font-family:"Zilla Slab",serif; font-weight:700; font-size:14.5px}
+.m-val{font-family:"IBM Plex Mono",monospace; font-weight:600; font-size:17px; text-align:right; font-variant-numeric:tabular-nums}
+.m-unit{font-size:11.5px; color:var(--ink-soft)}
+.m-unit.r{text-align:right}
+
+.m-track{
+  position:relative; height:14px; background:#E2E2DA; cursor:ew-resize;
+  border:1px solid transparent; touch-action:none;
+}
+.m-track:hover{background:#DCDCD3}
+.m-track:focus-visible{outline:2px solid var(--teal); outline-offset:2px}
+.m-track .fill{position:absolute; top:0; bottom:0; left:0; background:var(--teal)}
+.m-track.neg .fill{background:var(--under)}
+.m-track .grip{
+  position:absolute; top:-3px; bottom:-3px; width:3px; background:var(--ink);
+  transform:translateX(-1.5px); pointer-events:none;
+}
+.m-track .zero{position:absolute; top:-2px; bottom:-2px; left:50%; width:1px; background:var(--ink-soft); opacity:.55}
+.m-scale{display:flex; justify-content:space-between; font-family:"IBM Plex Mono",monospace; font-size:10px; color:var(--ink-soft); padding-top:3px}
+.m-cap{margin:5px 0 0; font-size:11.5px; color:var(--gold); display:none}
+.metric.capped .m-cap{display:block}
+
+.takeaway{margin:22px 0 0; background:var(--ink); color:var(--paper); padding:16px 20px; border-left:4px solid var(--teal-pale)}
+.takeaway h3{color:var(--teal-pale); margin-bottom:4px}
+.takeaway p{margin:0; max-width:80ch; font-size:14.5px}
+
+.panels{display:grid; grid-template-columns:minmax(0,1.25fr) minmax(260px,1fr); gap:22px; margin-top:22px}
+@media (max-width:940px){ .panels{grid-template-columns:1fr} }
+.panel{background:var(--card); border:1px solid var(--line); padding:16px 18px}
+.formula{font-family:"IBM Plex Mono",monospace; font-size:13px; background:#fff; border:1px solid var(--line); padding:10px 12px; margin:0 0 12px; overflow-x:auto}
+.work{font-family:"IBM Plex Mono",monospace; font-size:12.5px; line-height:1.9; margin:0}
+.work .step{display:block; overflow-x:auto; white-space:nowrap; padding-bottom:2px}
+.work .step b{font-weight:600; color:var(--teal)}
+.guide dt{font-family:"Zilla Slab",serif; font-weight:700; font-size:13.5px; margin-top:12px}
+.guide dt:first-child{margin-top:0}
+.guide dd{margin:2px 0 0; font-size:13.5px; color:var(--ink-soft)}
+.guide dt.good::before{content:"\2713\00a0\00a0"; color:var(--teal); font-family:"IBM Plex Sans",sans-serif}
+.guide dt.bad::before{content:"\2715\00a0\00a0"; color:var(--under); font-family:"IBM Plex Sans",sans-serif}
+.guide dt.watch::before{content:"!\00a0\00a0"; color:var(--gold); font-family:"IBM Plex Sans",sans-serif}
+
+.ledger{margin-top:22px}
+.tbl-scroll{overflow-x:auto; border:1px solid var(--line); background:var(--card)}
+table{border-collapse:collapse; width:100%; min-width:660px; font-size:13px}
+th,td{padding:7px 11px; text-align:right; border-bottom:1px solid var(--line); white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+thead th{font-family:"Zilla Slab",serif; font-weight:700; font-size:12.5px; background:#E6E7E0; border-bottom:2px solid var(--ink)}
+td{font-family:"IBM Plex Mono",monospace; font-variant-numeric:tabular-nums}
+tbody tr:last-child td{border-bottom:none}
+th.lit,td.lit{background:#fff; box-shadow:inset 2px 0 0 var(--teal), inset -2px 0 0 var(--teal)}
+tfoot td{font-weight:600; background:#E6E7E0; border-top:2px solid var(--ink)}
+
+footer{margin-top:40px; padding-top:14px; border-top:1px solid var(--line); font-size:12.5px; color:var(--ink-soft)}
+@media (prefers-reduced-motion:no-preference){ .m-track .fill,.m-track .grip{transition:left .12s ease, width .12s ease} }
+</style>
+</head>
+<body>
+
+<div class="rail"><span>26ECP-102 &middot; AI APPLICATIONS LAB</span></div>
+
+<div class="wrap">
+
+  <h1>Six ways to be wrong about a house price</h1>
+  <p class="lede">Eight Boston homes, their real median value, and what a model predicted. Every metric on slides 8&ndash;13 reads the same eight mistakes &mdash; and they disagree. Drag a prediction on the chart, drag a metric bar to force a value, or load a scenario.</p>
+
+  <section class="scen">
+    <div class="scen-head">
+      <h2>Load a scenario</h2>
+      <p id="scenNote">Each one is built to break a different metric.</p>
+    </div>
+    <div class="chips" id="chips"></div>
+  </section>
+
+  <div class="split">
+    <div>
+      <div class="board">
+        <div class="board-top">
+          <p class="hint">Drag the hollow circles to change a prediction. Keyboard: tab to a circle, then &uarr; &darr;.</p>
+          <label class="sqtoggle"><input type="checkbox" id="sqToggle"> Draw error&sup2; as real area</label>
+        </div>
+        <svg id="chart" viewBox="0 0 760 392" role="img" aria-label="Actual versus predicted house prices with error bars"></svg>
+        <div class="legend">
+          <span><i style="border-color:var(--ink)"></i>Actual price</span>
+          <span><i style="border-color:var(--under)"></i>Predicted too low</span>
+          <span><i style="border-color:var(--over)"></i>Predicted too high</span>
+          <span><i style="border-color:var(--teal-pale)"></i>Mean price &mdash; the baseline R&sup2; compares against</span>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="rd-head">
+        <h2>Or drive it backwards</h2>
+        <p>Drag any bar to force that metric to a value. The chart scales the errors to match &mdash; and the other five metrics move on their own.</p>
+      </div>
+      <div class="readouts" id="readouts"></div>
+    </div>
+  </div>
+
+  <div class="takeaway">
+    <h3 id="tkTitle">What this scenario shows</h3>
+    <p id="tkBody"></p>
+  </div>
+
+  <div class="panels">
+    <section class="panel">
+      <h2 id="mathTitle">The arithmetic, on this data</h2>
+      <p class="formula" id="mathFormula"></p>
+      <p class="work" id="mathWork"></p>
+    </section>
+    <section class="panel">
+      <h2>What to consider, what to ignore</h2>
+      <dl class="guide" id="guide"></dl>
+    </section>
+  </div>
+
+  <section class="ledger">
+    <h2>Every number, every house</h2>
+    <p class="hint" style="margin:-4px 0 10px">The highlighted column is the only one the selected metric actually uses.</p>
+    <div class="tbl-scroll">
+      <table id="ledger">
+        <thead><tr id="ledHead"></tr></thead>
+        <tbody id="ledBody"></tbody>
+        <tfoot><tr id="ledFoot"></tr></tfoot>
+      </table>
+    </div>
+  </section>
+
+  <footer>Prices are median value of owner-occupied homes in $1000s (<code>medv</code>), the target variable of the Boston housing data. Dragging a metric bar keeps the <em>pattern</em> of errors fixed &mdash; which houses are wrong, and in what proportion &mdash; and scales their size until the metric hits your value. Predictions stay inside $0&ndash;$56k, so extreme drags saturate.</footer>
+</div>
+
+<script>
+(function(){
+"use strict";
+
+/* ---------------- data ---------------- */
+var ACTUAL = [13.6, 15.2, 18.9, 21.6, 24.0, 28.7, 34.7, 50.0];
+var N = ACTUAL.length;
+var MEAN = ACTUAL.reduce(function(a,b){return a+b;},0)/N;
+var PMAX = 56;
+var SSTOT = ACTUAL.reduce(function(s,a){ return s + (a-MEAN)*(a-MEAN); }, 0);
+var SEED = [1,-1,1,-1,1,-1,1,-1];
+
+function add(arr){ return ACTUAL.map(function(a,i){ return Math.max(0, a + arr[i]); }); }
+
+var SCENARIOS = [
+  { key:'solid', label:'A solid model',
+    pred: add([0.9,-1.2,1.5,-0.8,1.1,-1.6,1.3,-1.1]),
+    note:'Nothing dramatic. Every error under $2k, scattered both ways.',
+    tk:'All six metrics agree the model is fine, so none of them is earning its keep yet. Note the one relationship that always holds: RMSE sits a little above MAE, because squaring gives the larger errors extra weight. They become equal only when every error is the same size.' },
+
+  { key:'outlier', label:'One badly missed house',
+    pred: add([0.3,-0.4,0.2,-0.3,0.4,-0.2,0.3,-24]),
+    note:'Seven near-perfect predictions and one $24k miss on the $50k home.',
+    tk:'This is the MSE-versus-MAE lesson. Seven houses are almost exact, so MAE stays at 3.26 \u2014 one bad house is only one-eighth of an average. MSE squares first, so that 24 becomes 576 and swamps everything, pushing RMSE to 8.49. Which metric is right depends entirely on whether one $24k miss is eight times worse than eight $3k misses, or far worse than that.' },
+
+  { key:'bias', label:'Off by $3k every single time',
+    pred: add([3,3,3,3,3,3,3,3]),
+    note:'A perfectly consistent bias \u2014 the model reads every house $3k high.',
+    tk:'MAE and RMSE are now exactly equal, both 3.00. That is the only situation where they meet: identical error magnitudes. It also exposes what none of these metrics can tell you \u2014 that this is a systematic bias you could fix by subtracting 3, not random noise. For that you have to read the signs in the error column, not the metric.' },
+
+  { key:'cheap', label:'Only the cheap homes missed',
+    pred: add([-3,3,-3,3,0,0,0,0]),
+    note:'A $3k error on the four least expensive homes, exact on the rest.',
+    tk:'MAE is 1.50 and MAPE is 8.9%. Now load "Only the costly homes missed" \u2014 same $3k errors, same MAE of 1.50 \u2014 and watch MAPE fall to 4.7%. A $3k mistake on a $13.6k house is a 22% mistake; on a $50k house it is 6%. MAPE is the only metric here that knows how big the house was.' },
+
+  { key:'costly', label:'Only the costly homes missed',
+    pred: add([0,0,0,0,-3,3,-3,3]),
+    note:'The same $3k error, moved to the four most expensive homes.',
+    tk:'Identical MAE, MSE and RMSE to the cheap-homes scenario \u2014 because those metrics only see the size of the gap, never what it is a gap in. MAPE has roughly halved. Use MAPE when a percentage is what the stakeholder feels; ignore it when actual values can approach zero, because the division blows up.' },
+
+  { key:'mean', label:'Just predict the average',
+    pred: ACTUAL.map(function(){ return MEAN; }),
+    note:'The laziest possible model: every house gets the mean, $25.84k.',
+    tk:'R\u00b2 is exactly 0.00, and that is the whole point of R\u00b2. It is not measured against perfection \u2014 it is measured against this, the model that ignores every feature and guesses the mean. R\u00b2 of 0 means "no better than knowing nothing". Meanwhile RMSE reads 11.20, which on its own tells you nothing about whether that is good, because you have no baseline to compare it to.' },
+
+  { key:'worse', label:'Ranked completely backwards',
+    pred: ACTUAL.slice().reverse(),
+    note:'The cheapest home predicted as the priciest, and so on down.',
+    tk:'R\u00b2 has gone to \u22122.60. If you were taught R\u00b2 lives between 0 and 1, this is the counterexample: only the upper bound is real. Negative means the model is actively worse than guessing the mean. R\u00b2 can also look respectable on a model with large dollar errors and terrible on one with small errors, because it measures explained variance, not money.' },
+
+  { key:'lowball', label:'Every price guessed 30% low',
+    pred: ACTUAL.map(function(a){ return a*0.7; }),
+    note:'A proportional error: each prediction is exactly 70% of the truth.',
+    tk:'RMSE is 8.45, driven almost entirely by the $50k house and its $15k miss. RMSLE stays at 0.338, because it compares ratios rather than differences \u2014 a 30% miss counts the same on a $14k home as on a $50k one, which is what MAPE reports too at a flat 30%. Reach for RMSLE when the target spans a wide range, or when under-predicting hurts more than over-predicting. Avoid it when values can go negative, or when your audience needs dollars.' }
+];
+
+/* ---------------- metric definitions ---------------- */
+var METRICS = [
+  {
+    key:'mse', name:'MSE', full:'Mean Squared Error', unit:'($1000s)\u00b2',
+    lo:0, hi:260, col:'sq', fmt:function(v){ return f2(v); },
+    formula:'MSE = (1/n) \u00b7 \u03a3 (Y\u1d62 \u2212 \u0176\u1d62)\u00b2',
+    calc:function(s){ return sum(s.sq)/N; },
+    work:function(s){
+      return [
+        'squared errors:  ' + s.sq.map(f2).join('  '),
+        'sum            =  <b>' + f2(sum(s.sq)) + '</b>',
+        'MSE = ' + f2(sum(s.sq)) + ' / ' + N + ' =  <b>' + f2(sum(s.sq)/N) + '</b>'
+      ];
+    },
+    guide:[
+      ['good','Care about MSE when one badly priced house is the real disaster','Your model values the $50k home at $26k. That one house loses you the listing. MSE turns its 24 into 576, so it will not let that house hide behind seven good ones the way an average would.'],
+      ['good','Care about it while the model is training','The computer needs a smooth number to walk downhill on, and MSE is that number. Nobody outside the code has to see it.'],
+      ['bad','Ignore it when you report to a buyer or an agent','The answer comes out in dollars squared. No house is worth 42 thousand-dollars-squared, so you cannot hold this number next to a price and say anything.'],
+      ['watch','First check the bad house is a real house','If H8 truly sold for $50k but someone typed 5.0, MSE will chase that typing mistake harder than it chases any genuine error.']
+    ]
+  },
+  {
+    key:'rmse', name:'RMSE', full:'Root Mean Squared Error', unit:'$1000s',
+    lo:0, hi:22, col:'sq', fmt:function(v){ return f2(v); },
+    formula:'RMSE = \u221a( \u03a3 (x\u1d62 \u2212 x\u0302\u1d62)\u00b2 / N )',
+    calc:function(s){ return Math.sqrt(sum(s.sq)/N); },
+    work:function(s){
+      var m = sum(s.sq)/N, mae = sum(s.abs)/N;
+      return [
+        'MSE  = ' + f2(m),
+        'RMSE = \u221a' + f2(m) + ' =  <b>' + f2(Math.sqrt(m)) + '</b>  (thousand dollars)',
+        'compare: MAE = ' + f2(mae) + '   \u2192  RMSE ' + (Math.abs(Math.sqrt(m)-mae) < 0.005 ? 'equals' : 'exceeds') + ' MAE'
+      ];
+    },
+    guide:[
+      ['good','Care about RMSE when you want MSE\u2019s warning in actual dollars','The square root undoes the squaring. "Off by about $8.5k" is a sentence you can say to a client. MSE\u2019s 72 is not.'],
+      ['good','Compare it against how much these prices vary anyway','The eight prices swing about $11.2k around their average. So an RMSE of $11.2k means your model is no more useful than shrugging \u2014 load "Just predict the average" and watch it happen.'],
+      ['bad','Ignore the number once you leave this dataset','RMSE grows with whatever you are predicting. $3k off on house prices is good. Being off by 3 when you are predicting rooms per house, which run 3 to 8, is hopeless. Same 3, opposite verdict.'],
+      ['watch','RMSE never drops below MAE','Here RMSE is 8.49 and MAE is 3.26. A wide gap like that means a few houses are doing all the damage. When the two are equal, every house is off by the same amount.']
+    ]
+  },
+  {
+    key:'mae', name:'MAE', full:'Mean Absolute Error', unit:'$1000s',
+    lo:0, hi:22, col:'abs', fmt:function(v){ return f2(v); },
+    formula:'MAE = \u03a3 |y\u1d62 \u2212 x\u1d62| / n',
+    calc:function(s){ return sum(s.abs)/N; },
+    work:function(s){
+      return [
+        'absolute errors:  ' + s.abs.map(f2).join('  '),
+        'sum            =  <b>' + f2(sum(s.abs)) + '</b>',
+        'MAE = ' + f2(sum(s.abs)) + ' / ' + N + ' =  <b>' + f2(sum(s.abs)/N) + '</b>  (thousand dollars)'
+      ];
+    },
+    guide:[
+      ['good','Care about MAE when someone asks "so how far off are you, usually?"','MAE answers that in one plain sentence: on a typical house, off by about $3k. No squaring, no weighting, nothing to explain.'],
+      ['good','Care about it when the odd unusual house is genuine','The $50k home really does exist. MAE lets it count once, like every other house, instead of letting it pick your model for you.'],
+      ['bad','Ignore it when one disastrous house is unacceptable','MAE says one $24k miss is worth the same as eight $3k misses. To a bank approving a loan on that one house, those two situations are nothing alike.'],
+      ['watch','It will not tell you the model leans high or low','Load "Off by $3k every single time" \u2014 MAE reads 3.00. Random scatter of the same size reads 3.00 too. Only the signed error column tells you which one you have, and only one of them is fixable by subtracting 3.']
+    ]
+  },
+  {
+    key:'mape', name:'MAPE', full:'Mean Absolute Percentage Error', unit:'%',
+    lo:0, hi:80, col:'pct', fmt:function(v){ return f1(v)+'%'; },
+    formula:'M = (1/n) \u00b7 \u03a3 | (A\u209c \u2212 F\u209c) / A\u209c |',
+    calc:function(s){ return sum(s.pct)/N; },
+    work:function(s){
+      return [
+        'per-house %:  ' + s.pct.map(function(p){ return f1(p)+'%'; }).join('  '),
+        'sum        =  <b>' + f1(sum(s.pct)) + '%</b>',
+        'MAPE = ' + f1(sum(s.pct)) + '% / ' + N + ' =  <b>' + f1(sum(s.pct)/N) + '%</b>'
+      ];
+    },
+    guide:[
+      ['good','Care about MAPE when cheap and costly houses sit in the same list','Being $3k off on the $13.6k cottage is a 22% blunder. The same $3k off on the $50k house is 6%. MAPE is the only metric here that notices the difference \u2014 the other five call both errors "3".'],
+      ['good','Care about it when you have to say it out loud in a meeting','"We are typically 8% off" needs no explanation. Nobody has to know what the target variable\u2019s units were.'],
+      ['bad','Never use it if any house could be priced near zero','You are dividing by the real price. One house listed at 0.1 makes its own error a few thousand percent, and that single row drags the average anywhere it likes.'],
+      ['watch','It quietly rewards underpricing','Guess $0 on a $20k house and you are 100% wrong \u2014 the worst MAPE can ever say. Guess $60k and you are 200% wrong. So a model tuned on MAPE learns to lowball.']
+    ]
+  },
+  {
+    key:'r2', name:'R\u00b2', full:'Coefficient of Determination', unit:'0 = mean baseline',
+    lo:-1, hi:1, col:'sq', signed:true, fmt:function(v){ return f3(v); },
+    formula:'R\u00b2 = 1 \u2212 SS_RES / SS_TOT = 1 \u2212 \u03a3(y\u1d62 \u2212 \u0177\u1d62)\u00b2 / \u03a3(y\u1d62 \u2212 \u0233)\u00b2',
+    calc:function(s){ return 1 - sum(s.sq)/SSTOT; },
+    work:function(s){
+      var r = 1 - sum(s.sq)/SSTOT;
+      return [
+        'SS_RES (model vs truth) = ' + f2(sum(s.sq)),
+        'SS_TOT (mean vs truth)  = ' + f2(SSTOT) + '   with mean \u0233 = ' + f2(MEAN),
+        'R\u00b2 = 1 \u2212 ' + f2(sum(s.sq)) + ' / ' + f2(SSTOT) + ' =  <b>' + f3(r) + '</b>',
+        r < 0 ? 'negative \u2192 this model is worse than predicting the mean'
+              : 'reads as: ' + f1(r*100) + '% of the variation in price is accounted for'
+      ];
+    },
+    guide:[
+      ['good','Care about R\u00b2 to answer "am I beating the lazy agent?"','Picture an agent who never looks at a house and quotes $25.84k every time, the average of these eight. That is the whole comparison R\u00b2 makes. 0.00 means you tied with him. 0.75 means you closed three-quarters of the gap between him and perfect.'],
+      ['good','Care about it when comparing two models on the same eight houses','It has no units, so it does not change if you switch the prices from dollars to rupees. RMSE would.'],
+      ['bad','Ignore the idea that it runs 0 to 1','Only the top end is real. Load "Ranked completely backwards" and R\u00b2 reads \u22122.60 \u2014 you can be far worse than the lazy agent.'],
+      ['bad','Ignore a high R\u00b2 on its own','It tells you nothing in dollars. And it never goes down when you add another column, even a useless one like the house\u2019s serial number. Always read it beside MAE or RMSE.']
+    ]
+  },
+  {
+    key:'rmsle', name:'RMSLE', full:'Root Mean Squared Log Error', unit:'log ratio',
+    lo:0, hi:1.2, col:'log', fmt:function(v){ return f3(v); },
+    formula:'RMSLE = \u221a( (1/n) \u00b7 \u03a3 (log(x\u1d62+1) \u2212 log(y\u1d62+1))\u00b2 )',
+    calc:function(s){ return Math.sqrt(sum(s.log)/N); },
+    work:function(s){
+      var m = sum(s.log)/N;
+      return [
+        'squared log gaps:  ' + s.log.map(f3).join('  '),
+        'mean            =  ' + f3(m),
+        'RMSLE = \u221a' + f3(m) + ' =  <b>' + f3(Math.sqrt(m)) + '</b>',
+        'the +1 inside each log is what keeps a price of 0 from becoming log(0)'
+      ];
+    },
+    guide:[
+      ['good','Care about RMSLE when your list runs from cottages to mansions','It reads percentages, not dollars. Load "Every price guessed 30% low": RMSLE stays flat at 0.338 because every house is equally 30% wrong, while RMSE climbs to 8.45 on the strength of the mansion alone.'],
+      ['good','Care about it when quoting too low costs more than quoting too high','Tell a seller their $50k house is worth $35k and they lose real money. RMSLE punishes that direction harder, which is what you want in a valuation you hand to a seller.'],
+      ['bad','Ignore it if a value could ever be negative','You are taking a log. The +1 inside protects you when a price is exactly 0, but nothing saves you below that \u2014 log of a negative number does not exist.'],
+      ['watch','0.338 is not $338','It is a log-ratio, not money. Nobody can act on it directly, so always report MAE or RMSE beside it when a dollar figure is what the room needs.']
+    ]
+  }
+];
+
+var COLS = [
+  {key:'house', head:'House',                    get:function(s,i){ return 'H'+(i+1); }},
+  {key:'act',   head:'Actual y',                 get:function(s,i){ return f1(ACTUAL[i]); }},
+  {key:'pred',  head:'Predicted \u0177',         get:function(s,i){ return f2(s.pred[i]); }},
+  {key:'err',   head:'Error (y \u2212 \u0177)',   get:function(s,i){ return (s.err[i]>0?'+':'') + f2(s.err[i]); }},
+  {key:'abs',   head:'|Error|',                  get:function(s,i){ return f2(s.abs[i]); }, total:function(s){ return f2(sum(s.abs)); }},
+  {key:'sq',    head:'Error\u00b2',              get:function(s,i){ return f2(s.sq[i]); },  total:function(s){ return f2(sum(s.sq)); }},
+  {key:'pct',   head:'|Error| / y',              get:function(s,i){ return f1(s.pct[i])+'%'; }, total:function(s){ return f1(sum(s.pct))+'%'; }},
+  {key:'log',   head:'(log gap)\u00b2',          get:function(s,i){ return f3(s.log[i]); },  total:function(s){ return f3(sum(s.log)); }}
+];
+
+/* ---------------- helpers ---------------- */
+function sum(a){ return a.reduce(function(x,y){return x+y;},0); }
+function f1(v){ return (Math.round(v*10)/10).toFixed(1); }
+function f2(v){ return (Math.round(v*100)/100).toFixed(2); }
+function f3(v){ return (Math.round(v*1000)/1000).toFixed(3); }
+function clampPred(v){ return Math.max(0, Math.min(PMAX, v)); }
+
+/* ---------------- state ---------------- */
+var pred = SCENARIOS[0].pred.slice();
+var activeScen = 'solid';
+var selected = 'mse';
+var showSquares = false;
+var capped = {};
+
+function stats(){
+  var err = ACTUAL.map(function(a,i){ return a - pred[i]; });
+  return {
+    pred: pred, err: err,
+    abs: err.map(Math.abs),
+    sq:  err.map(function(e){ return e*e; }),
+    pct: err.map(function(e,i){ return ACTUAL[i]===0 ? 0 : Math.abs(e/ACTUAL[i])*100; }),
+    log: pred.map(function(p,i){ var d = Math.log(clampPred(p)+1) - Math.log(ACTUAL[i]+1); return d*d; })
+  };
+}
+function metric(key){
+  for(var i=0;i<METRICS.length;i++) if(METRICS[i].key===key) return METRICS[i];
+}
+
+/* ---------------- inverse solver: force a metric to a value ---------------- */
+/* We keep the SHAPE of the error vector and scale its MAGNITUDE by k.
+   That makes the answer unique, and it is the pedagogical point: the six
+   metrics are six readings of one error vector, not six free dials.        */
+function dirMetrics(d){
+  var ssres = d.reduce(function(s,e){ return s+e*e; }, 0);
+  return {
+    ssres: ssres,
+    mse:  ssres/N,
+    rmse: Math.sqrt(ssres/N),
+    mae:  d.reduce(function(s,e){ return s+Math.abs(e); },0)/N,
+    mape: d.reduce(function(s,e,i){ return s+Math.abs(e/ACTUAL[i]); },0)/N*100
+  };
+}
+function rmsleAtK(k, d){
+  var s = 0;
+  for(var i=0;i<N;i++){
+    var p = clampPred(ACTUAL[i] - k*d[i]);
+    var g = Math.log(p+1) - Math.log(ACTUAL[i]+1);
+    s += g*g;
+  }
+  return Math.sqrt(s/N);
+}
+function solveK(key, target, d){
+  var dm = dirMetrics(d);
+  if(dm.ssres <= 1e-12) return 0;
+  switch(key){
+    case 'mse':   return Math.sqrt(Math.max(0,target)/dm.mse);
+    case 'rmse':  return Math.max(0,target)/dm.rmse;
+    case 'mae':   return Math.max(0,target)/dm.mae;
+    case 'mape':  return Math.max(0,target)/dm.mape;
+    case 'r2':    return Math.sqrt(Math.max(0,(1-Math.min(0.9995,target))*SSTOT)/dm.ssres);
+    case 'rmsle': {
+      var lo=0, hi=1, guard=0;
+      while(rmsleAtK(hi,d) < target && hi < 400 && guard++ < 60) hi *= 1.7;
+      for(var it=0; it<70; it++){
+        var mid = (lo+hi)/2;
+        if(rmsleAtK(mid,d) < target) lo = mid; else hi = mid;
+      }
+      return (lo+hi)/2;
+    }
+  }
+  return 1;
+}
+function applyK(k, d){
+  pred = ACTUAL.map(function(a,i){ return clampPred(a - k*d[i]); });
+}
+
+/* ---------------- chart ---------------- */
+var SVG = 'http://www.w3.org/2000/svg';
+var chart = document.getElementById('chart');
+var GEO = {x0:52, x1:748, y0:18, y1:340};
+GEO.colW = (GEO.x1-GEO.x0)/N;
+function yOf(v){ return GEO.y1 - (v/PMAX)*(GEO.y1-GEO.y0); }
+function vOf(y){ return (GEO.y1 - y)/(GEO.y1-GEO.y0)*PMAX; }
+function cxOf(i){ return GEO.x0 + GEO.colW*(i+0.5); }
+function el(name, attrs, text){
+  var n = document.createElementNS(SVG, name);
+  for(var k in attrs) n.setAttribute(k, attrs[k]);
+  if(text!=null) n.textContent = text;
+  return n;
+}
+
+function drawChart(){
+  var s = stats();
+  while(chart.firstChild) chart.removeChild(chart.firstChild);
+
+  if(showSquares){
+    var g = el('g',{opacity:'0.17'});
+    for(var q=0;q<N;q++){
+      var side = Math.abs(yOf(0)-yOf(s.abs[q]));
+      if(side < 0.5) continue;
+      var midY = (yOf(ACTUAL[q]) + yOf(pred[q]))/2;
+      g.appendChild(el('rect',{
+        x: cxOf(q)-side/2, y: midY-side/2, width:side, height:side,
+        fill: s.err[q] > 0 ? 'var(--under)' : 'var(--over)'
+      }));
+    }
+    chart.appendChild(g);
+  }
+
+  for(var v=0; v<=50; v+=10){
+    chart.appendChild(el('line',{x1:GEO.x0, x2:GEO.x1, y1:yOf(v), y2:yOf(v), 'class':'grid-line'}));
+    chart.appendChild(el('text',{x:GEO.x0-9, y:yOf(v)+4, 'class':'tick-lbl', 'text-anchor':'end'}, '$'+v+'k'));
+  }
+  chart.appendChild(el('line',{x1:GEO.x0, x2:GEO.x0, y1:GEO.y0, y2:GEO.y1, stroke:'var(--ink)', 'stroke-width':'2'}));
+
+  var isR2 = selected==='r2';
+  chart.appendChild(el('line',{
+    x1:GEO.x0, x2:GEO.x1, y1:yOf(MEAN), y2:yOf(MEAN),
+    stroke:'var(--teal-pale)', 'stroke-width': isR2 ? 3 : 2, 'stroke-dasharray':'2 4'
+  }));
+  chart.appendChild(el('text',{
+    x:GEO.x1, y:yOf(MEAN)-7, 'class':'tick-lbl', 'text-anchor':'end',
+    fill: isR2 ? 'var(--teal)' : 'var(--ink-soft)'
+  }, 'mean $'+f1(MEAN)+'k'));
+
+  for(var i=0;i<N;i++){
+    var cx = cxOf(i), ya = yOf(ACTUAL[i]), yp = yOf(pred[i]);
+    var under = s.err[i] > 0;
+    var ecol = under ? 'var(--under)' : 'var(--over)';
+
+    if(isR2){
+      chart.appendChild(el('line',{
+        x1:cx-13, x2:cx-13, y1:ya, y2:yOf(MEAN),
+        stroke:'var(--teal-pale)', 'stroke-width':'7'
+      }));
+    }
+    if(s.abs[i] > 0.02){
+      chart.appendChild(el('line',{x1:cx, x2:cx, y1:ya, y2:yp, stroke:ecol, 'stroke-width':'6'}));
+      chart.appendChild(el('text',{
+        x:cx + 20, y:(ya+yp)/2 + 4, 'class':'err-lbl', fill:ecol, 'text-anchor':'start'
+      }, (under?'\u2212':'+') + f1(s.abs[i])));
+    }
+    chart.appendChild(el('line',{x1:cx-17, x2:cx+17, y1:ya, y2:ya, stroke:'var(--ink)', 'stroke-width':'3.5'}));
+    chart.appendChild(el('circle',{
+      cx:cx, cy:yp, r:8.5, 'class':'knob', tabindex:'0', 'data-i':i,
+      role:'slider', 'aria-label':'Predicted price for house '+(i+1)+', actual $'+f1(ACTUAL[i])+'k',
+      'aria-valuemin':'0','aria-valuemax':String(PMAX),'aria-valuenow':f1(pred[i]),
+      'aria-valuetext':'$'+f1(pred[i])+'k'
+    }));
+    chart.appendChild(el('text',{x:cx, y:GEO.y1+20, 'class':'col-lbl'}, 'H'+(i+1)));
+    chart.appendChild(el('text',{x:cx, y:GEO.y1+35, 'class':'col-lbl'}, '$'+f1(ACTUAL[i])+'k'));
+  }
+
+  if(isR2){
+    chart.appendChild(el('text',{
+      x:GEO.x0+4, y:GEO.y1+35, 'class':'tick-lbl', fill:'var(--teal)'
+    }, 'pale bars = distance from the mean (SS_TOT) \u00b7 coloured bars = your error (SS_RES)'));
+  }
+}
+
+/* ---------------- dragging a prediction ---------------- */
+var dragKnob = null;
+chart.addEventListener('pointerdown', function(e){
+  var t = e.target;
+  if(!t.classList || !t.classList.contains('knob')) return;
+  dragKnob = parseInt(t.getAttribute('data-i'),10);
+  t.classList.add('dragging');
+  if(t.setPointerCapture) t.setPointerCapture(e.pointerId);
+  e.preventDefault();
+});
+chart.addEventListener('pointermove', function(e){
+  if(dragKnob===null) return;
+  var r = chart.getBoundingClientRect();
+  var y = (e.clientY - r.top) / r.height * chart.viewBox.baseVal.height;
+  setPred(dragKnob, vOf(y));
+});
+function endKnob(){
+  if(dragKnob===null) return;
+  dragKnob = null;
+  var d = chart.querySelector('.knob.dragging');
+  if(d) d.classList.remove('dragging');
+}
+window.addEventListener('pointerup', endKnob);
+window.addEventListener('pointercancel', endKnob);
+chart.addEventListener('keydown', function(e){
+  var t = e.target;
+  if(!t.classList || !t.classList.contains('knob')) return;
+  var i = parseInt(t.getAttribute('data-i'),10), step = 0;
+  if(e.key==='ArrowUp')   step =  0.5;
+  if(e.key==='ArrowDown') step = -0.5;
+  if(e.key==='PageUp')    step =  2.5;
+  if(e.key==='PageDown')  step = -2.5;
+  if(!step) return;
+  e.preventDefault();
+  setPred(i, pred[i] + step);
+  var again = chart.querySelector('.knob[data-i="'+i+'"]');
+  if(again) again.focus();
+});
+
+function setPred(i, v){
+  pred[i] = clampPred(Math.round(v*10)/10);
+  capped = {};
+  breakScenario('You are driving now',
+    'Watch which readouts move a lot and which barely notice. A metric that shrugs at your change is a metric that would shrug at that kind of mistake in production.');
+  render();
+}
+function breakScenario(title, body){
+  if(activeScen === null) return;
+  activeScen = null;
+  document.getElementById('tkTitle').textContent = title;
+  document.getElementById('tkBody').textContent = body;
+  syncChips();
+}
+
+/* ---------------- scenario chips ---------------- */
+var chipsBox = document.getElementById('chips');
+SCENARIOS.forEach(function(sc){
+  var b = document.createElement('button');
+  b.className = 'chip'; b.type = 'button'; b.textContent = sc.label;
+  b.dataset.key = sc.key;
+  b.setAttribute('aria-pressed', String(sc.key===activeScen));
+  b.addEventListener('click', function(){ loadScenario(sc.key); });
+  chipsBox.appendChild(b);
+});
+function syncChips(){
+  Array.prototype.forEach.call(chipsBox.children, function(b){
+    b.setAttribute('aria-pressed', String(b.dataset.key===activeScen));
+  });
+}
+function loadScenario(key){
+  var sc = SCENARIOS.filter(function(s){ return s.key===key; })[0];
+  pred = sc.pred.slice();
+  activeScen = key;
+  capped = {};
+  document.getElementById('scenNote').textContent = sc.note;
+  document.getElementById('tkTitle').textContent = sc.label;
+  document.getElementById('tkBody').textContent = sc.tk;
+  syncChips();
+  render();
+}
+
+/* ---------------- readout cards, with draggable bars ---------------- */
+var readouts = document.getElementById('readouts');
+METRICS.forEach(function(m){
+  var card = document.createElement('div');
+  card.className = 'metric'; card.dataset.key = m.key;
+  card.innerHTML =
+    '<button class="m-head" type="button">' +
+      '<span class="m-name">' + m.name + '</span>' +
+      '<span class="m-val" data-val></span>' +
+      '<span class="m-unit">' + m.full + '</span>' +
+      '<span class="m-unit r">' + m.unit + '</span>' +
+    '</button>' +
+    '<div class="m-track" role="slider" tabindex="0" data-track ' +
+      'aria-label="Set ' + m.full + '" aria-valuemin="' + m.lo + '" aria-valuemax="' + m.hi + '">' +
+      '<div class="fill"></div>' + (m.signed ? '<span class="zero"></span>' : '') + '<span class="grip"></span>' +
+    '</div>' +
+    '<div class="m-scale"><span>' + m.fmt(m.lo) + '</span><span>' + m.fmt(m.hi) + '</span></div>' +
+    '<p class="m-cap">Saturated \u2014 predictions hit the $0\u2013$56k limit, so the metric stopped short of your target.</p>';
+
+  card.querySelector('.m-head').addEventListener('click', function(){ selected = m.key; render(); });
+
+  var track = card.querySelector('[data-track]');
+  var live = null;
+
+  function fracFromEvent(e){
+    var r = track.getBoundingClientRect();
+    return Math.max(0, Math.min(1, (e.clientX - r.left)/r.width));
+  }
+  function beginDrag(){
+    var s = stats();
+    var d = s.err.slice();
+    if(d.reduce(function(a,e){ return a+Math.abs(e); },0) < 1e-9) d = SEED.slice();
+    live = d;
+  }
+  function pushTarget(frac){
+    if(!live) return;
+    var target = m.lo + frac*(m.hi - m.lo);
+    applyK(solveK(m.key, target, live), live);
+    var achieved = m.calc(stats());
+    var span = m.hi - m.lo;
+    capped = {}; capped[m.key] = Math.abs(achieved - target) > span*0.02;
+    selected = m.key;
+    breakScenario('You set ' + m.name + ' by hand',
+      'Every other readout moved with it. These are six views of one set of errors, not six independent dials \u2014 fix the pattern of mistakes and you fix all six numbers at once. What stayed constant here is which houses are wrong and in what proportion; only the size of the errors scaled.');
+    render();
+  }
+
+  track.addEventListener('pointerdown', function(e){
+    beginDrag();
+    if(track.setPointerCapture) track.setPointerCapture(e.pointerId);
+    track.dataset.drag = '1';
+    pushTarget(fracFromEvent(e));
+    e.preventDefault();
+  });
+  track.addEventListener('pointermove', function(e){
+    if(track.dataset.drag !== '1') return;
+    pushTarget(fracFromEvent(e));
+  });
+  function stop(){ track.dataset.drag = '0'; live = null; }
+  track.addEventListener('pointerup', stop);
+  track.addEventListener('pointercancel', stop);
+  track.addEventListener('lostpointercapture', stop);
+
+  track.addEventListener('keydown', function(e){
+    var big = (e.key==='PageUp'||e.key==='PageDown');
+    var up  = (e.key==='ArrowRight'||e.key==='ArrowUp'||e.key==='PageUp');
+    var dn  = (e.key==='ArrowLeft'||e.key==='ArrowDown'||e.key==='PageDown');
+    if(!up && !dn) return;
+    e.preventDefault();
+    var cur = m.calc(stats());
+    var step = (m.hi - m.lo) * (big ? 0.10 : 0.025) * (up ? 1 : -1);
+    beginDrag();
+    pushTarget(Math.max(0, Math.min(1, (cur - m.lo + step)/(m.hi - m.lo))));
+    live = null;
+    var again = readouts.querySelector('.metric[data-key="'+m.key+'"] [data-track]');
+    if(again) again.focus();
+  });
+
+  readouts.appendChild(card);
+});
+
+document.getElementById('sqToggle').addEventListener('change', function(e){
+  showSquares = e.target.checked;
+  drawChart();
+});
+
+/* ---------------- render ---------------- */
+function render(){
+  var s = stats();
+
+  METRICS.forEach(function(m){
+    var card = readouts.querySelector('.metric[data-key="'+m.key+'"]');
+    var v = m.calc(s);
+    card.classList.toggle('sel', m.key===selected);
+    card.classList.toggle('capped', !!capped[m.key]);
+    card.querySelector('.m-head').setAttribute('aria-pressed', String(m.key===selected));
+    card.querySelector('[data-val]').textContent = m.fmt(v);
+
+    var track = card.querySelector('[data-track]');
+    var fill  = track.querySelector('.fill');
+    var grip  = track.querySelector('.grip');
+    var frac  = Math.max(0, Math.min(1, (v - m.lo)/(m.hi - m.lo)));
+    if(m.signed){
+      var mid = (0 - m.lo)/(m.hi - m.lo);
+      fill.style.left  = (Math.min(frac, mid)*100).toFixed(1)+'%';
+      fill.style.width = (Math.abs(frac-mid)*100).toFixed(1)+'%';
+      track.classList.toggle('neg', v < 0);
+    } else {
+      fill.style.left  = '0%';
+      fill.style.width = (frac*100).toFixed(1)+'%';
+      track.classList.remove('neg');
+    }
+    grip.style.left = (frac*100).toFixed(1)+'%';
+    track.setAttribute('aria-valuenow', m.fmt(v));
+    track.setAttribute('aria-valuetext', m.fmt(v)+' '+m.unit);
+  });
+
+  var m = metric(selected);
+  document.getElementById('mathTitle').textContent = m.full + ', step by step';
+  document.getElementById('mathFormula').textContent = m.formula;
+  document.getElementById('mathWork').innerHTML =
+    m.work(s).map(function(l){ return '<span class="step">'+l+'</span>'; }).join('');
+
+  document.getElementById('guide').innerHTML = m.guide.map(function(g){
+    return '<dt class="'+g[0]+'">'+g[1]+'</dt><dd>'+g[2]+'</dd>';
+  }).join('');
+
+  var lit = m.col;
+  document.getElementById('ledHead').innerHTML = COLS.map(function(c){
+    return '<th class="'+(c.key===lit?'lit':'')+'">'+c.head+'</th>';
+  }).join('');
+  var rows = '';
+  for(var i=0;i<N;i++){
+    rows += '<tr>' + COLS.map(function(c){
+      return '<td class="'+(c.key===lit?'lit':'')+'">'+c.get(s,i)+'</td>';
+    }).join('') + '</tr>';
+  }
+  document.getElementById('ledBody').innerHTML = rows;
+  document.getElementById('ledFoot').innerHTML = COLS.map(function(c){
+    var t = c.total ? c.total(s) : (c.key==='house' ? '\u03a3 over 8 houses' : '');
+    return '<td class="'+(c.key===lit?'lit':'')+'">'+t+'</td>';
+  }).join('');
+
+  drawChart();
+}
+
+loadScenario('solid');
+})();
+</script>
+</body>
+</html>
